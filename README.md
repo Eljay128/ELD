@@ -79,6 +79,16 @@ Trade-offs against `npm start`:
 Because the key sits in the page, treat the standalone as a **personal** tool: don't host it on a
 shared server and don't hand the file to anyone with a key saved in it.
 
+**Hosted copy.** The same build is published by GitHub Pages from `docs/` on this branch:
+
+<https://eljay128.github.io/ELD/>
+
+`npm run build:standalone` writes both `standalone/stride.html` and `docs/index.html` from one build,
+so committing a rebuild is what updates the hosted page — there is no separate deploy step. Pages is
+configured as *Deploy from a branch* → `/docs`. Note that a Pages site is publicly reachable even
+when the repository is private, so nothing secret can ever be baked into the page; the API key is
+entered at runtime and kept in `sessionStorage` only.
+
 **On a phone.** The run takes eight minutes or more inside the tab, so the page holds a screen wake
 lock for the duration and warns before a navigation that would discard the work. Two caveats:
 
