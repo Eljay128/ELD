@@ -79,6 +79,16 @@ Trade-offs against `npm start`:
 Because the key sits in the page, treat the standalone as a **personal** tool: don't host it on a
 shared server and don't hand the file to anyone with a key saved in it.
 
+**On a phone.** The run takes eight minutes or more inside the tab, so the page holds a screen wake
+lock for the duration and warns before a navigation that would discard the work. Two caveats:
+
+- **Android** opens the local file directly in Chrome and it works.
+- **iOS will not run it from a local file at all.** Safari cannot open `file://` HTML, and the Files
+  app preview renders the page but does not execute JavaScript, so the app appears dead. On an
+  iPhone the file has to be served over http(s) — either from a web host, or from `npm start` on a
+  computer on the same network, which is the better option anyway because ffmpeg then handles the
+  codec and the key stays on the computer.
+
 ### Configuration
 
 All optional, set in `.env`:

@@ -443,6 +443,36 @@ async function analyse(clips, intake) {
   };
 }
 
+/* ------------------------------------------------- keeping the run alive */
+// The whole analysis happens in this tab and takes eight minutes or more. On a
+// phone that is long enough for the screen to lock, which suspends the page and
+// kills the run. Hold a screen wake lock for the duration where the browser
+// offers one, and warn before an accidental navigation throws the work away.
+let running = false;
+let wakeLock = null;
+
+async function acquireLock() {
+  try {
+    wakeLock = (await navigator.wakeLock?.request('screen')) ?? null;
+  } catch {
+    wakeLock = null; // Refused or unsupported — the run still works if the screen stays on.
+  }
+}
+
+// iOS releases the lock whenever the tab is hidden, so take it again on return.
+document.addEventListener('visibilitychange', () => {
+  if (running && document.visibilityState === 'visible' && !wakeLock) acquireLock();
+});
+
+window.addEventListener('beforeunload', (e) => {
+  if (running) e.preventDefault();
+});
+
+async function releaseLock() {
+  try { await wakeLock?.release(); } catch { /* already gone */ }
+  wakeLock = null;
+}
+
 /* ------------------------------------------------------------------ submit */
 $('#form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -451,6 +481,9 @@ $('#form').addEventListener('submit', async (e) => {
 
   $('#log').replaceChildren();
   show('working');
+  running = true;
+  await acquireLock();
+  if (!wakeLock) log('Note: this browser will not hold the screen awake — keep the tab in front and stop the screen locking.');
 
   const intake = {};
   for (const [k, v] of new FormData(e.target).entries()) if (typeof v === 'string' && v.trim()) intake[k] = v.trim();
@@ -472,6 +505,9 @@ $('#form').addEventListener('submit', async (e) => {
     renderReport(result);
   } catch (err) {
     fail(err.message ?? String(err));
+  } finally {
+    running = false;
+    await releaseLock();
   }
 });
 
