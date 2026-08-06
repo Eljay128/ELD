@@ -26,12 +26,29 @@ Requires Node 20+. No system ffmpeg needed — the binaries ship with the depend
 ```bash
 npm install
 cp .env.example .env      # then add your ANTHROPIC_API_KEY
+npm run doctor            # verifies the key, the model, ffmpeg and the schema
 npm start
 ```
 
 Open <http://localhost:3000>.
 
 Get an API key at <https://console.anthropic.com/settings/keys>.
+
+### Preflight
+
+`npm run doctor` checks everything the app needs *before* you upload anything — Node version, key
+present and accepted, `claude-opus-5` reachable, the web-search tool available, the ffmpeg and
+ffprobe binaries, the knowledge base, and the report schema. It exits non-zero on failure, so it
+works as a CI gate too.
+
+Point it at real footage to exercise frame extraction as well:
+
+```bash
+npm run doctor -- ./my-horse-clip.mp4
+```
+
+A passing run ends with the frame count, clip duration, resolution and payload size — which is the
+quickest way to confirm a given clip is usable before spending a full analysis on it.
 
 ### Configuration
 
