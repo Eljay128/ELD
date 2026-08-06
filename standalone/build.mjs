@@ -2,7 +2,7 @@
    Pulls the prompts, knowledge base and schema straight out of src/ so the
    standalone can never drift from the server version. */
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -56,6 +56,16 @@ for (const marker of ['__CSS__', '__CONFIG__', '__APP__', '__RENDERER__']) {
   if (html.includes(marker)) throw new Error(`Placeholder ${marker} was never substituted.`);
 }
 
-const out = join(here, 'stride.html');
-await writeFile(out, html);
-console.log(`stride.html — ${(Buffer.byteLength(html) / 1024).toFixed(0)} KB`);
+// Two outputs from one build: the file you open locally, and docs/index.html,
+// which is what GitHub Pages serves. Same bytes — writing both here is what
+// stops the hosted copy drifting behind the local one.
+const size = `${(Buffer.byteLength(html) / 1024).toFixed(0)} KB`;
+
+await writeFile(join(here, 'stride.html'), html);
+console.log(`standalone/stride.html — ${size}`);
+
+await mkdir(join(root, 'docs'), { recursive: true });
+await writeFile(join(root, 'docs', 'index.html'), html);
+// Tells Pages to serve the directory as-is instead of running it through Jekyll.
+await writeFile(join(root, 'docs', '.nojekyll'), '');
+console.log(`docs/index.html — ${size} (GitHub Pages)`);
