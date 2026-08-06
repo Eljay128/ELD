@@ -307,7 +307,10 @@ function renderDifferential(differential) {
   section.append(intro);
 
   for (const dx of differential ?? []) {
-    const card = el('div', `dx rank-${dx.rank}`);
+    const card = el('div', 'dx');
+    // Drives the severity stripe and rank-chip emphasis in CSS, so likelihood
+    // reads as form and not only as a percentage.
+    card.dataset.likelihood = dx.likelihood;
 
     const head = el('div', 'dx-head');
     head.append(el('div', 'dx-rank', String(dx.rank)));

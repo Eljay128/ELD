@@ -13,7 +13,18 @@
   <body>
     <header class="masthead">
       <div class="wrap">
-        <h1><span aria-hidden="true">🐎</span> Stride</h1>
+        <h1>
+          <!-- Stride cycle: four hoofbeats, the middle two loaded. -->
+          <svg width="30" height="18" viewBox="0 0 30 18" fill="none" aria-hidden="true">
+            <path d="M1 13 Q5 3 9 13 Q13 3 17 13 Q21 3 25 13" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" fill="none" />
+            <circle cx="9" cy="13" r="2.1" fill="currentColor" />
+            <circle cx="17" cy="13" r="2.1" fill="currentColor" />
+            <circle cx="1" cy="13" r="1.3" fill="currentColor" opacity="0.4" />
+            <circle cx="25" cy="13" r="1.3" fill="currentColor" opacity="0.4" />
+          </svg>
+          Stride
+        </h1>
         <p class="tagline">
           Upload a video of your horse in motion. Get a ranked list of what might be going on, and what
           it takes to get them striding out again.
@@ -40,7 +51,13 @@
                    aria-label="Choose a video file or drop one here">
                 <input type="file" id="video" name="video" accept="video/*" hidden />
                 <div class="dz-idle">
-                  <div class="dz-icon" aria-hidden="true">▶</div>
+                  <div class="dz-icon" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="M10 9.5v5l4-2.5z" fill="currentColor" stroke="none" />
+                    </svg>
+                  </div>
                   <p class="dz-title">Drop a video here, or click to choose</p>
                   <p class="dz-sub">MP4, MOV, AVI, WebM or MKV · <span id="size-limit">up to 250 MB</span></p>
                 </div>
