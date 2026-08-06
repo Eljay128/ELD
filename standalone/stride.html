@@ -1026,16 +1026,78 @@ function seekTo(video, time) {
   });
 }
 
-/** Motion profile: mean absolute pixel difference between successive samples.
- *  Same idea as the server's ffmpeg profiler, done with a 64x36 canvas. */
-async function motionProfile(video, onProgress) {
-  const w = 64, h = 36;
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
+/* Motion profile: mean absolute pixel difference between successive samples.
+   Same idea as the server's ffmpeg profiler, done with a 64x36 canvas.
 
-  const fps = 8;
-  const total = Math.min(Math.floor(video.duration * fps), 110);
+   Seeking is the obvious way to do this and the wrong one: each seek on a
+   1080p clip costs roughly half a second, so a hundred of them took 57s for a
+   14-second video — before a single frame had been captured. Playing the clip
+   once at speed and sampling frames as they are presented gives the same coarse
+   energy curve for a fraction of the time. */
+const PROFILE_W = 64, PROFILE_H = 36;
+const PROFILE_GAP = 0.12;   // seconds of video time between samples
+const PROFILE_RATE = 6;     // playback speed; browsers clamp this as they see fit
+
+function profileCanvas() {
+  const c = document.createElement('canvas');
+  c.width = PROFILE_W;
+  c.height = PROFILE_H;
+  return [c, c.getContext('2d', { willReadFrequently: true })];
+}
+
+function meanAbsDiff(a, b) {
+  let sum = 0;
+  for (let p = 0; p < a.length; p += 4) sum += Math.abs(a[p] - b[p]);
+  return sum / (a.length / 4);
+}
+
+function profileByPlayback(video, onProgress) {
+  return new Promise((resolve) => {
+    const [, ctx] = profileCanvas();
+    const profile = [];
+    let prev = null;
+    let lastSample = -Infinity;
+    let done = false;
+
+    const stop = () => {
+      if (done) return;
+      done = true;
+      video.pause();
+      video.playbackRate = 1;
+      resolve(profile.length > 3 ? profile : null);
+    };
+
+    const onFrame = (_now, meta) => {
+      const t = meta.mediaTime;
+      if (t - lastSample >= PROFILE_GAP) {
+        lastSample = t;
+        ctx.drawImage(video, 0, 0, PROFILE_W, PROFILE_H);
+        const data = ctx.getImageData(0, 0, PROFILE_W, PROFILE_H).data;
+        if (prev) profile.push({ time: t, value: meanAbsDiff(data, prev) });
+        prev = data;
+        onProgress?.(Math.min(99, Math.round((t / video.duration) * 100)));
+      }
+      if (video.ended || done) stop();
+      else video.requestVideoFrameCallback(onFrame);
+    };
+
+    video.addEventListener('ended', stop, { once: true });
+    setTimeout(stop, 30000); // Whatever happens, do not stall the run here.
+
+    video.currentTime = 0;
+    video.muted = true;
+    video.playbackRate = PROFILE_RATE;
+    Promise.resolve(video.play())
+      .then(() => video.requestVideoFrameCallback(onFrame))
+      .catch(stop); // Playback refused — the seek fallback below still applies.
+  });
+}
+
+/** Fallback for browsers without requestVideoFrameCallback. Deliberately
+ *  coarse: seeks are expensive, so this samples far fewer points. */
+async function profileBySeeking(video, onProgress) {
+  const [, ctx] = profileCanvas();
+  const total = Math.min(Math.floor(video.duration * 4), 45);
   if (total < 4) return null;
 
   const profile = [];
@@ -1043,17 +1105,22 @@ async function motionProfile(video, onProgress) {
   for (let i = 0; i < total; i++) {
     const t = (i / total) * video.duration;
     await seekTo(video, t);
-    ctx.drawImage(video, 0, 0, w, h);
-    const data = ctx.getImageData(0, 0, w, h).data;
-    if (prev) {
-      let sum = 0;
-      for (let p = 0; p < data.length; p += 4) sum += Math.abs(data[p] - prev[p]);
-      profile.push({ time: t, value: sum / (data.length / 4) });
-    }
+    ctx.drawImage(video, 0, 0, PROFILE_W, PROFILE_H);
+    const data = ctx.getImageData(0, 0, PROFILE_W, PROFILE_H).data;
+    if (prev) profile.push({ time: t, value: meanAbsDiff(data, prev) });
     prev = data;
-    if (i % 20 === 0) onProgress?.(Math.round((i / total) * 100));
+    if (i % 5 === 0) onProgress?.(Math.round((i / total) * 100));
   }
   return profile;
+}
+
+async function motionProfile(video, onProgress) {
+  if (video.duration < 1) return null;
+  if (typeof video.requestVideoFrameCallback === 'function') {
+    const profile = await profileByPlayback(video, onProgress);
+    if (profile) return profile;
+  }
+  return profileBySeeking(video, onProgress);
 }
 
 function pickBurstStarts(profile, { usableStart, usableEnd, span, count }) {
