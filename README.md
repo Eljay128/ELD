@@ -1,1 +1,159 @@
-# ELD
+# Stride — equine gait screening
+
+Upload a video of a horse in motion. Stride samples frames across the clip, reads the gait
+against the way veterinarians actually localise lameness, checks its reading against current
+published sources, and returns:
+
+- an estimated **AAEP lameness grade** and which limb(s) are implicated, with the visual evidence
+- a **ranked differential** — most likely and most common first, down to least likely — each entry
+  carrying both supporting *and* contradicting evidence
+- **remedies** for each candidate: what to do today, veterinary options to raise, farriery changes,
+  rehab exercises, expected timeline and prognosis
+- a phased **conditioning plan** to rebuild the horse toward a full, free stride
+- a checklist to take to the vet
+
+> **This is a screening aid, not a diagnosis.** It reads still frames. It cannot palpate, feel a
+> digital pulse, use hoof testers, flex a joint or run a nerve block — the things that actually
+> confirm a lameness. Visual assessment also misses asymmetry below roughly 25%, so a genuinely
+> subtle lameness can be invisible on video. Anything sudden, severe or worsening needs a vet.
+
+---
+
+## Setup
+
+Requires Node 20+. No system ffmpeg needed — the binaries ship with the dependencies.
+
+```bash
+npm install
+cp .env.example .env      # then add your ANTHROPIC_API_KEY
+npm start
+```
+
+Open <http://localhost:3000>.
+
+Get an API key at <https://console.anthropic.com/settings/keys>.
+
+### Configuration
+
+All optional, set in `.env`:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | — | **Required.** |
+| `PORT` | `3000` | HTTP port. |
+| `MAX_UPLOAD_MB` | `250` | Upload size cap. |
+| `FRAME_COUNT` | `14` | Frames sampled per video (clamped 6–24). More frames cover the stride cycle better and cost more. |
+| `WEB_RESEARCH` | `true` | Set `false` to skip the live research pass — faster and cheaper, slightly less current. |
+
+---
+
+## How it works
+
+```
+video ──▶ ffmpeg samples N frames evenly across the middle 90% of the clip
+             │
+             ▼
+     Pass 1 · observation + research      (claude-opus-5, vision + web_search)
+       reads head/neck excursion, pelvic symmetry, stride length, foot flight,
+       landing pattern, hoof-pastern axis, muscle symmetry; applies the
+       laterality rules; then searches published sources to check its reading
+             │
+             ▼
+     Pass 2 · structured report           (claude-opus-5, JSON schema)
+       turns the findings into a ranked differential with remedies
+             │
+             ▼
+     browser  (progress streamed over SSE)
+```
+
+**Why two passes.** One call juggling server-side web search *and* a rigid output schema is much
+more likely to come back malformed or truncated. Splitting them keeps the JSON reliable and lets
+the observation pass reason freely and search as much as it needs.
+
+**Why frames rather than the video file.** The Messages API takes images, not video. Frames sampled
+evenly across the clip capture the stride cycle at multiple points, which is what the laterality
+rules need — you have to see which limb is grounded at each extreme of head or pelvic movement.
+
+The first and last 5% of the clip is skipped: in a hand-held video that is usually the handler
+still setting up or the horse already halted.
+
+### Grounding
+
+`src/knowledge.js` is a reference library handed to the model in the system prompt: the AAEP 0–5
+scale, the laterality rules (head nod, hip hike, bilateral masking, compensatory patterns), red
+flags, and 18 conditions with prevalence, signalment, video-visible gait signs, confirmatory
+diagnostics and remedies. It exists so the differential is ranked by **what is actually common** in
+that region for that signalment, rather than by what sounds impressive. Common things are common:
+a middle-aged sport horse with a short choppy hind gait far more often has distal hock arthritis
+than something exotic.
+
+### Safety behaviour
+
+- Red-flag findings (non-weight-bearing, suspected laminitis or fracture, ataxia, open wound over a
+  joint) set an emergency flag that renders above everything else and turns the top recommendation
+  into "call your veterinarian today".
+- Veterinary treatments are framed as options to discuss. The prompt forbids suggesting prescription
+  medications, doses, or injections an owner would administer alone.
+- The conditioning plan is explicitly conditional on veterinary clearance.
+- Every ranked condition must carry contradicting evidence as well as supporting evidence, and
+  anything the footage cannot assess is stated as such.
+
+---
+
+## Getting a clip that's worth analysing
+
+The quality of the answer is mostly set by the quality of the footage.
+
+1. **Trot, in hand, on a loose lead.** A tight lead masks the head nod — the single most useful sign.
+2. **Hard, flat, level ground.** A driveway beats an arena for spotting foot pain.
+3. **Film from the side first**, then straight toward and straight away from the camera.
+4. **Whole horse in frame, 8–10 seconds, camera still.** Let the horse move past you; don't pan.
+5. **Good light, no long shadows.** If you can, film the same clip on a circle in both directions —
+   many lamenesses only show on a turn.
+
+---
+
+## Project layout
+
+```
+server.js            Express server, upload handling, job store, SSE progress
+src/frames.js        ffprobe/ffmpeg frame sampling and video validation
+src/knowledge.js     AAEP scale, laterality rules, red flags, condition library
+src/schema.js        JSON Schema for the structured report
+src/analyze.js       Two-pass Claude pipeline
+public/              Single-page frontend (no build step)
+```
+
+Uploaded videos are written to `uploads/`, processed, and deleted in a `finally` block whether the
+analysis succeeds or fails. Nothing is retained.
+
+The job store is in-memory, so this runs as a single process as written. To scale horizontally,
+move `jobs` in `server.js` to Redis.
+
+---
+
+## Reference sources
+
+The knowledge base was compiled from:
+
+- [AAEP lameness scale — The Horse](https://thehorse.com/199286/the-aaep-horse-lameness-scale-explained/)
+- [The Lameness Examination in Horses — Merck Veterinary Manual](https://www.merckvetmanual.com/musculoskeletal-system/lameness-in-horses-overview-and-examination/the-lameness-examination-in-horses)
+- [Overview of Lameness in Horses — Merck Veterinary Manual](https://www.merckvetmanual.com/musculoskeletal-system/lameness-in-horses-overview-and-examination/overview-of-lameness-in-horses)
+- [Navicular Syndrome in Horses — Merck Veterinary Manual](https://www.merckvetmanual.com/musculoskeletal-system/disorders-of-the-foot-in-horses/navicular-syndrome-in-horses)
+- [Lameness exam and scale — Mad Barn](https://madbarn.com/lameness-exam-for-horses/)
+- [Lameness evaluation in horses — University of Minnesota, Large Animal Surgery](https://open.lib.umn.edu/largeanimalsurgery/chapter/lameness-evaluation-in-horses/)
+- [Robustness of five visual assessment methods for hindlimb lameness (PMC)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9787951/)
+- [Vertical movement symmetry of the withers in induced fore- and hindlimb lameness (PMC)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6175082/)
+- [Asymmetry thresholds in visual assessment of forelimb lameness on circles (PMC)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10650068/)
+- [Causes of lameness in horses — Avonvale Equine](https://www.avonvaleequine.co.uk/blog/causes-of-lameness-in-horses/)
+
+At runtime the model also searches the web for the specific presentation it observes, and the
+sources it consulted are listed at the bottom of each report.
+
+---
+
+## Licence and disclaimer
+
+Educational software. It does not diagnose, prescribe, or replace veterinary examination, and no
+warranty is made as to the accuracy of its output. If a horse is non-weight-bearing, badly lame, or
+laminitis or a fracture is suspected, contact a veterinarian immediately.
