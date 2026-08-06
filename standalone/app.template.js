@@ -433,9 +433,97 @@ function pickBurstStarts(profile, { usableStart, usableEnd, span, count }) {
  *  when it has nothing to encode, which yields an empty payload. */
 const MIN_FRAME_CHARS = 512;
 
-function grabFrame(video, canvas, ctx) {
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+function grabFrame(source, canvas, ctx) {
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg', 0.82).split(',')[1] ?? '';
+}
+
+/** Burst layout, shared by both decode paths so they sample identically. */
+function planBursts(duration, perView, gait, profile) {
+  const g = String(gait ?? '').toLowerCase();
+  const span = g.includes('walk') && g.includes('trot') ? BURST_SPAN_BY_GAIT.default
+    : g.includes('walk') ? BURST_SPAN_BY_GAIT.walk
+    : g.includes('trot') ? BURST_SPAN_BY_GAIT.trot
+    : g.includes('canter') ? BURST_SPAN_BY_GAIT.canter
+    : BURST_SPAN_BY_GAIT.default;
+
+  const usableStart = duration * 0.05;
+  const usableEnd = duration * 0.95;
+  const bursts = Math.max(1, Math.min(BURSTS, Math.floor((usableEnd - usableStart) / (span * 1.5)) || 1));
+  const perBurst = Math.max(2, Math.floor(perView / bursts));
+  const innerStep = span / (perBurst - 1);
+  const starts = pickBurstStarts(profile, { usableStart, usableEnd, span, count: bursts });
+  return { bursts, perBurst, innerStep, span, starts };
+}
+
+function burstLabels(starts, perBurst, innerStep, duration) {
+  const plan = [];
+  for (const [b, start] of starts.entries()) {
+    for (let i = 0; i < perBurst; i++) {
+      plan.push({
+        time: Math.min(start + innerStep * i, Math.max(0, duration - 0.05)),
+        label: `burst ${b + 1}, frame ${i + 1}`,
+      });
+    }
+  }
+  return plan;
+}
+
+/**
+ * Second decode path, for clips the media element will not open.
+ *
+ * iPhones record HEVC in a QuickTime container, and some browsers refuse that
+ * combination outright — the demuxer gives up before the decoder is consulted.
+ * Parsing the container here and feeding samples to VideoDecoder gets those
+ * clips read on any device whose platform can decode HEVC at all.
+ */
+async function readFramesViaWebCodecs(file, opened, view, perView, gait, onProgress) {
+  const { track } = opened;
+  const meta = { duration: track.duration, width: track.width, height: track.height };
+  if (!(meta.duration > 1.5)) throw new Error(`${file.name} is only ${meta.duration.toFixed(1)}s — too short to show a stride.`);
+
+  onProgress(`${view}: reading the video directly…`);
+
+  // Profile pass: one forward decode, sampled down to the small canvas.
+  const [, pctx] = profileCanvas();
+  const profileTimes = [];
+  for (let t = 0; t < meta.duration; t += PROFILE_GAP) profileTimes.push(t);
+  const samples = await decodeFramesAt(file, opened, profileTimes, (frame) => {
+    pctx.drawImage(frame, 0, 0, PROFILE_W, PROFILE_H);
+    return pctx.getImageData(0, 0, PROFILE_W, PROFILE_H).data;
+  }, (n, total) => onProgress(`${view}: profiling movement… ${Math.round((n / total) * 100)}%`));
+
+  const profile = [];
+  for (let i = 1; i < samples.length; i++) {
+    if (samples[i] && samples[i - 1]) profile.push({ time: profileTimes[i], value: meanAbsDiff(samples[i], samples[i - 1]) });
+  }
+
+  const { bursts, perBurst, innerStep, span, starts } = planBursts(meta.duration, perView, gait, profile.length > 3 ? profile : null);
+  const plan = burstLabels(starts, perBurst, innerStep, meta.duration);
+
+  const scale = Math.min(1, MAX_EDGE / Math.max(meta.width, meta.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(meta.width * scale);
+  canvas.height = Math.round(meta.height * scale);
+  const ctx = canvas.getContext('2d');
+
+  let captured = 0;
+  const encoded = await decodeFramesAt(file, opened, plan.map((p) => p.time), (frame) => {
+    captured++;
+    onProgress(`${view}: capturing frames… ${captured}/${plan.length}`);
+    return grabFrame(frame, canvas, ctx);
+  });
+
+  const frames = [];
+  for (const [i, p] of plan.entries()) {
+    const base64 = encoded[i];
+    if (!base64 || base64.length < MIN_FRAME_CHARS) {
+      throw new Error(`The decoder produced no picture for ${file.name} at ${p.time.toFixed(1)}s.`);
+    }
+    frames.push({ index: frames.length, label: `${p.label} — t=${p.time.toFixed(2)}s`, base64 });
+  }
+
+  return { view, meta, frames, sampling: { bursts, perBurst, innerStep, span, motionGuided: profile.length > 3 } };
 }
 
 /**
@@ -449,7 +537,13 @@ async function probeClip(file) {
   try {
     video = await loadVideo(file, 12000);
   } catch (err) {
-    return { ok: false, short: err.short, detail: err.detail };
+    // The media element refused it. That is routine for iPhone HEVC in a .mov,
+    // and says nothing about whether the platform can decode the video itself.
+    const wc = await openWithWebCodecs(file);
+    if (wc.ok) {
+      return { ok: true, path: 'webcodecs', duration: wc.track.duration, width: wc.track.width, height: wc.track.height };
+    }
+    return { ok: false, short: `${err.short}, and ${wc.reason}`, detail: err.detail };
   }
   try {
     await primeDecoder(video);
@@ -470,7 +564,17 @@ async function probeClip(file) {
 }
 
 async function extractClip(file, view, perView, gait, onProgress) {
-  const video = await loadVideo(file);
+  let video;
+  try {
+    video = await loadVideo(file);
+  } catch (err) {
+    const wc = await openWithWebCodecs(file);
+    if (!wc.ok) {
+      err.message = `${err.message} Decoding it directly did not work either: ${wc.reason}.`;
+      throw err;
+    }
+    return readFramesViaWebCodecs(file, wc, view, perView, gait, onProgress);
+  }
   try {
     return await readFrames(video, file, view, perView, gait, onProgress);
   } finally {
@@ -494,19 +598,7 @@ async function readFrames(video, file, view, perView, gait, onProgress) {
   onProgress(`${view}: profiling movement…`);
   const profile = await motionProfile(video, (pct) => onProgress(`${view}: profiling movement… ${pct}%`));
 
-  const g = String(gait ?? '').toLowerCase();
-  const span = g.includes('walk') && g.includes('trot') ? BURST_SPAN_BY_GAIT.default
-    : g.includes('walk') ? BURST_SPAN_BY_GAIT.walk
-    : g.includes('trot') ? BURST_SPAN_BY_GAIT.trot
-    : g.includes('canter') ? BURST_SPAN_BY_GAIT.canter
-    : BURST_SPAN_BY_GAIT.default;
-
-  const usableStart = meta.duration * 0.05;
-  const usableEnd = meta.duration * 0.95;
-  const bursts = Math.max(1, Math.min(BURSTS, Math.floor((usableEnd - usableStart) / (span * 1.5)) || 1));
-  const perBurst = Math.max(2, Math.floor(perView / bursts));
-  const innerStep = span / (perBurst - 1);
-  const starts = pickBurstStarts(profile, { usableStart, usableEnd, span, count: bursts });
+  const { bursts, perBurst, innerStep, span, starts } = planBursts(meta.duration, perView, gait, profile);
 
   const scale = Math.min(1, MAX_EDGE / Math.max(meta.width, meta.height));
   const canvas = document.createElement('canvas');

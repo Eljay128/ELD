@@ -26,12 +26,20 @@ function sliceRenderer(source) {
   return source.slice(from, to).trim();
 }
 
-const [css, appJs, shell, template] = await Promise.all([
+const [css, appJs, shell, template, mp4, webcodecs] = await Promise.all([
   read('public/styles.css'),
   read('public/app.js'),
   read('standalone/shell.html'),
   read('standalone/app.template.js'),
+  read('standalone/mp4.js'),
+  read('standalone/webcodecs.js'),
 ]);
+
+// The decode modules are authored as ES modules so they can be unit-tested in
+// Node against real files. The page runs one classic script, so strip the module
+// syntax and concatenate rather than shipping a second script tag.
+const asPlainScript = (src) =>
+  src.replace(/^import\s.*?;\s*$/gm, '').replace(/^export\s+(?=(async\s+)?function|const|class)/gm, '');
 
 const config = {
   knowledge: buildKnowledgePrompt(),
@@ -45,7 +53,11 @@ const config = {
 // </script> inside a JSON string literal would close the host <script> tag.
 const configJson = JSON.stringify(config).replaceAll('</', '<\\/');
 
-const app = template.replace('__RENDERER__', () => sliceRenderer(appJs));
+const app = [
+  asPlainScript(mp4),
+  asPlainScript(webcodecs),
+  template.replace('__RENDERER__', () => sliceRenderer(appJs)),
+].join('\n\n');
 
 const html = shell
   .replace('/*__CSS__*/', () => css)
