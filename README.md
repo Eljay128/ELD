@@ -51,6 +51,34 @@ npm run doctor -- ./my-horse-clip.mp4
 A passing run ends with the frame count, clip duration, resolution and payload size — which is the
 quickest way to confirm a given clip is usable before spending a full analysis on it.
 
+### Standalone single-file build
+
+There is a second way to run this with no server at all:
+
+```bash
+npm run build:standalone     # writes standalone/stride.html
+```
+
+Open that file in a browser — double-click it, no localhost, no Node running. It asks for your API
+key, then does everything the server does *in the tab*: frame extraction with `<video>` and a
+canvas, motion profiling with pixel diffs, and the same two calls straight to `api.anthropic.com`.
+
+It is genuinely one file. The build inlines the stylesheet, the knowledge base, both system prompts
+and the report schema by importing them from `src/`, so the standalone cannot drift from the served
+version — the prompts and schema are the same objects, not a copy.
+
+Trade-offs against `npm start`:
+
+| | Server | Standalone file |
+| --- | --- | --- |
+| Setup | `npm install`, `.env`, `npm start` | open the file |
+| Where the key lives | `.env` on the server | `sessionStorage` in the tab, gone when it closes |
+| Where the video goes | uploaded, then deleted | never leaves the machine — read locally by the browser |
+| Video decoding | ffmpeg, any codec | the browser's decoder (Safari and Chrome read iPhone HEVC; Firefox does not) |
+
+Because the key sits in the page, treat the standalone as a **personal** tool: don't host it on a
+shared server and don't hand the file to anyone with a key saved in it.
+
 ### Configuration
 
 All optional, set in `.env`:
@@ -224,6 +252,7 @@ src/knowledge.js     AAEP scale, laterality rules, red flags, condition library
 src/schema.js        JSON Schema for the structured report
 src/analyze.js       Two-pass Claude pipeline
 public/              Single-page frontend (no build step)
+standalone/          Server-free build — shell.html + app.template.js + build.mjs
 ```
 
 Uploaded videos are written to `uploads/`, processed, and deleted in a `finally` block whether the

@@ -1,0 +1,1459 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stride — Equine Gait Screening (standalone)</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐎</text></svg>"
+    />
+    <style>/* Stride — clinical readout identity.
+   Cool, blue-biased neutrals (imaging-viewer world) with a petrol accent.
+   Severity semantics are deliberately separate from the accent hue so that
+   "needs attention" never reads as "branded". */
+
+:root {
+  --ground: #e8ecee;
+  --panel: #f7f9fa;
+  --panel-2: #dfe5e8;
+  --ink: #10171c;
+  --ink-2: #47555e;
+  --ink-3: #6b7c84;
+  --line: #cfd8dd;
+  --line-strong: #b3c0c7;
+
+  --accent: #0b6a75;
+  --accent-ink: #ffffff;
+  --accent-wash: #dcebed;
+
+  --critical: #b3261e;
+  --critical-bg: #fbecea;
+  --critical-line: #e3a79f;
+  --caution: #8a5a00;
+  --caution-bg: #fbf3e2;
+  --caution-line: #ddc186;
+  --good: #1f6b45;
+
+  --radius: 6px;
+  --shadow: 0 1px 1px rgba(16, 23, 28, 0.04), 0 4px 14px rgba(16, 23, 28, 0.05);
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0d1316;
+    --panel: #141c21;
+    --panel-2: #1d272d;
+    --ink: #e6edf0;
+    --ink-2: #a3b3bb;
+    --ink-3: #7d8f97;
+    --line: #253138;
+    --line-strong: #35454e;
+
+    --accent: #4fbecb;
+    --accent-ink: #06181c;
+    --accent-wash: #102c31;
+
+    --critical: #ff9482;
+    --critical-bg: #2b1512;
+    --critical-line: #6d2f24;
+    --caution: #e3b45c;
+    --caution-bg: #2a2011;
+    --caution-line: #5f4a1f;
+    --good: #62c08e;
+
+    --shadow: 0 1px 1px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* The viewer's explicit toggle must win over the OS preference, both ways. */
+:root[data-theme='light'] {
+  --ground: #e8ecee; --panel: #f7f9fa; --panel-2: #dfe5e8;
+  --ink: #10171c; --ink-2: #47555e; --ink-3: #6b7c84;
+  --line: #cfd8dd; --line-strong: #b3c0c7;
+  --accent: #0b6a75; --accent-ink: #ffffff; --accent-wash: #dcebed;
+  --critical: #b3261e; --critical-bg: #fbecea; --critical-line: #e3a79f;
+  --caution: #8a5a00; --caution-bg: #fbf3e2; --caution-line: #ddc186;
+  --good: #1f6b45;
+}
+:root[data-theme='dark'] {
+  --ground: #0d1316; --panel: #141c21; --panel-2: #1d272d;
+  --ink: #e6edf0; --ink-2: #a3b3bb; --ink-3: #7d8f97;
+  --line: #253138; --line-strong: #35454e;
+  --accent: #4fbecb; --accent-ink: #06181c; --accent-wash: #102c31;
+  --critical: #ff9482; --critical-bg: #2b1512; --critical-line: #6d2f24;
+  --caution: #e3b45c; --caution-bg: #2a2011; --caution-line: #5f4a1f;
+  --good: #62c08e;
+}
+
+* { box-sizing: border-box; }
+
+/* Must outrank the `display: block` on form controls below, or the hidden file
+   input renders as a stray "Choose File" button inside the dropzone. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+
+/* ------------------------------------------------------------- masthead */
+.masthead {
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  padding: 26px 0 22px;
+  margin-bottom: 26px;
+}
+.masthead h1 {
+  display: flex; align-items: center; gap: 11px;
+  margin: 0 0 7px;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.masthead h1 svg { flex: none; color: var(--accent); }
+.tagline { margin: 0; color: var(--ink-2); max-width: 62ch; font-size: 0.94rem; }
+
+/* --------------------------------------------------------------- notices */
+.notice {
+  border: 1px solid;
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  padding: 13px 16px;
+  margin-bottom: 22px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+.notice-warn { background: var(--caution-bg); border-color: var(--caution-line); border-left-color: var(--caution); }
+.notice-danger { background: var(--critical-bg); border-color: var(--critical-line); border-left-color: var(--critical); color: var(--ink); }
+.notice-danger strong {
+  display: block; margin-bottom: 5px;
+  color: var(--critical);
+  font-family: var(--mono);
+  font-size: 0.82rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.notice-danger ul { margin: 8px 0 0; padding-left: 18px; }
+
+/* ----------------------------------------------------------------- cards */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.card > h2 {
+  margin: 0 0 3px;
+  font-family: var(--mono);
+  font-size: 0.74rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.11em;
+  color: var(--ink-3);
+}
+.card-sub { margin: 0 0 16px; color: var(--ink-2); font-size: 0.88rem; }
+.card > h2 + .grid, .card > h2 + .dropzone, .card > h2 + p:not(.card-sub) { margin-top: 15px; }
+
+/* Sub-labels inside cards share the mono eyebrow treatment. */
+.card h5, .evidence h5, .remedy h5 {
+  margin: 18px 0 7px;
+  font-family: var(--mono);
+  font-size: 0.7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--ink-3);
+}
+
+/* -------------------------------------------------------------- dropzone */
+.dropzone {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--ground);
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone:hover, .dropzone:focus-visible { border-color: var(--accent); background: var(--accent-wash); outline: none; }
+.dropzone.dragging { border-color: var(--accent); background: var(--accent-wash); }
+.dropzone.has-file { cursor: default; padding: 16px; border-style: solid; background: var(--ground); }
+.dz-icon { color: var(--accent); margin-bottom: 10px; line-height: 0; }
+.dz-title { margin: 0 0 4px; font-weight: 600; font-size: 0.96rem; }
+.dz-sub { margin: 0; color: var(--ink-3); font-family: var(--mono); font-size: 0.76rem; }
+.dz-chosen video { width: 100%; max-height: 320px; border-radius: 4px; background: #000; display: block; }
+.dz-filename {
+  margin: 9px 0 4px; font-family: var(--mono); font-size: 0.78rem;
+  color: var(--ink-2); word-break: break-all;
+}
+.link-btn {
+  background: none; border: none; padding: 0;
+  color: var(--accent); font: inherit; font-size: 0.85rem;
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ tips */
+.tips { margin-top: 16px; font-size: 0.88rem; }
+.tips summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+.tips ul { margin: 11px 0 0; padding-left: 19px; color: var(--ink-2); }
+.tips li { margin-bottom: 6px; }
+
+/* ----------------------------------------------------------------- forms */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 13px; }
+label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-3);
+}
+label.full { margin-top: 13px; }
+input, select, textarea {
+  display: block; width: 100%; margin-top: 5px;
+  padding: 8px 10px;
+  font-family: var(--sans); font-size: 0.92rem; font-weight: 400;
+  text-transform: none; letter-spacing: 0;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+input::placeholder, textarea::placeholder { color: var(--ink-3); opacity: 0.75; }
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent);
+}
+textarea { resize: vertical; }
+
+/* --------------------------------------------------------------- buttons */
+.submit-row { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; margin: 22px 0 36px; }
+.primary, .secondary {
+  font-family: var(--sans); font-weight: 600; font-size: 0.93rem;
+  padding: 10px 20px; border-radius: 4px; cursor: pointer;
+  border: 1px solid transparent;
+}
+.primary { background: var(--accent); color: var(--accent-ink); }
+.primary:hover:not(:disabled) { filter: brightness(1.12); }
+.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.secondary:hover { background: var(--panel-2); }
+.primary:focus-visible, .secondary:focus-visible, .link-btn:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.submit-note { margin: 0; color: var(--ink-3); font-size: 0.85rem; }
+
+/* --------------------------------------------------------------- working */
+.working { text-align: center; padding: 42px 24px; }
+.working h2 {
+  font-family: var(--sans); font-size: 1.2rem; font-weight: 650;
+  text-transform: none; letter-spacing: -0.01em; color: var(--ink);
+}
+.working-note { color: var(--ink-2); max-width: 48ch; margin: 7px auto 24px; font-size: 0.9rem; }
+.spinner {
+  width: 30px; height: 30px; margin: 0 auto 14px;
+  border: 2px solid var(--line-strong); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+
+.log { list-style: none; margin: 0 auto; padding: 0; text-align: left; max-width: 440px; }
+.log li {
+  padding: 7px 0 7px 22px; position: relative;
+  color: var(--ink-3); font-family: var(--mono); font-size: 0.79rem;
+  border-top: 1px solid var(--line);
+}
+.log li:first-child { border-top: none; }
+.log li::before { content: "✓"; position: absolute; left: 0; color: var(--good); }
+.log li:last-child { color: var(--ink); }
+.log li:last-child::before { content: "▸"; color: var(--accent); }
+
+/* ---------------------------------------------------------------- report */
+.report-head h2 {
+  margin: 0 0 5px;
+  font-size: 1.32rem; font-weight: 650; letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+/* Run metadata reads as instrument output, not as chips. */
+.meta-strip {
+  display: flex; flex-wrap: wrap; gap: 0;
+  margin: 0 0 20px; padding: 8px 0;
+  list-style: none;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  font-family: var(--mono); font-size: 0.73rem; letter-spacing: 0.02em;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.meta-strip li { padding: 0 14px; border-left: 1px solid var(--line); }
+.meta-strip li:first-child { padding-left: 0; border-left: none; }
+
+.grade-row { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; margin-bottom: 11px; }
+.grade-badge {
+  background: var(--accent); color: var(--accent-ink);
+  border-radius: 4px; padding: 5px 12px;
+  font-family: var(--mono); font-size: 0.86rem; font-weight: 700;
+  letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+}
+.grade-scale { color: var(--ink-3); font-family: var(--mono); font-size: 0.76rem; }
+
+.limb-list { list-style: none; padding: 0; margin: 8px 0 0; }
+.limb-list li { padding: 11px 0; border-top: 1px solid var(--line); }
+.limb-name { font-weight: 600; }
+.conf {
+  font-family: var(--mono); font-size: 0.66rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  border: 1px solid var(--line-strong); border-radius: 3px;
+  padding: 2px 7px; margin-left: 8px; color: var(--ink-2); vertical-align: 1px;
+}
+.conf.high { border-color: var(--good); color: var(--good); }
+.conf.low { opacity: 0.8; }
+.limb-evidence { margin: 5px 0 0; color: var(--ink-2); font-size: 0.9rem; }
+
+.obs-list { margin: 0; padding-left: 19px; color: var(--ink-2); font-size: 0.92rem; }
+.obs-list li { margin-bottom: 5px; }
+
+/* ---------------------------------------------------------- differential */
+/* Likelihood is encoded in the stripe as well as the number, so the ranking
+   reads at a glance without parsing percentages. */
+.dx {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px 18px 23px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.dx::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: var(--line-strong);
+}
+.dx[data-likelihood="most likely"]::before { background: var(--accent); }
+.dx[data-likelihood="likely"]::before { background: var(--accent); opacity: 0.55; }
+.dx[data-likelihood="possible"]::before { background: var(--line-strong); }
+.dx[data-likelihood="less likely"]::before { background: var(--line-strong); opacity: 0.6; }
+.dx[data-likelihood="unlikely but important to exclude"]::before { background: var(--caution); }
+
+.dx-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.dx-rank {
+  flex: none; width: 24px; height: 24px; border-radius: 3px;
+  background: var(--panel-2); border: 1px solid var(--line-strong);
+  display: grid; place-items: center;
+  font-family: var(--mono); font-weight: 700; font-size: 0.78rem;
+}
+.dx[data-likelihood="most likely"] .dx-rank {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+}
+.dx-title { flex: 1 1 220px; min-width: 0; }
+.dx-title h4 { margin: 0; font-size: 1.06rem; font-weight: 650; letter-spacing: -0.01em; text-wrap: balance; }
+.dx-region {
+  margin: 3px 0 0; color: var(--ink-3);
+  font-family: var(--mono); font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.dx-like { text-align: right; flex: none; }
+.dx-like-label {
+  font-family: var(--mono); font-size: 0.65rem;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+}
+.dx-like-val {
+  font-family: var(--mono); font-weight: 700; font-size: 1.15rem;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+
+.bar { height: 3px; background: var(--panel-2); border-radius: 2px; margin: 13px 0 15px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--accent); }
+.dx[data-likelihood="unlikely but important to exclude"] .bar > span { background: var(--caution); }
+
+.dx-rationale { margin: 0 0 4px; font-size: 0.95rem; }
+.evidence {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 4px 22px; margin-bottom: 2px;
+}
+.evidence ul { margin: 0; padding-left: 17px; font-size: 0.89rem; color: var(--ink-2); }
+.evidence li { margin-bottom: 4px; }
+
+.dx-more { margin-top: 15px; border-top: 1px solid var(--line); padding-top: 13px; }
+.dx-more > summary {
+  cursor: pointer; color: var(--accent); font-weight: 600;
+  font-family: var(--mono); font-size: 0.75rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.remedy p { margin: 0 0 4px; font-size: 0.92rem; }
+.remedy ul { margin: 0; padding-left: 17px; font-size: 0.92rem; }
+.remedy li { margin-bottom: 4px; }
+.remedy dl { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.kv { display: flex; gap: 8px; font-size: 0.88rem; margin-bottom: 5px; }
+.kv dt {
+  color: var(--ink-3); flex: none; min-width: 76px;
+  font-family: var(--mono); font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.06em; padding-top: 2px;
+}
+.kv dd { margin: 0; }
+
+/* ------------------------------------------------------------------ plan */
+.phase { border-top: 1px solid var(--line); padding: 15px 0; }
+.phase:first-of-type { border-top: none; }
+.phase-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.phase-head h4 { margin: 0; font-size: 1rem; font-weight: 650; }
+.phase-dur {
+  color: var(--accent); font-family: var(--mono); font-size: 0.72rem;
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.phase-focus { margin: 4px 0 9px; color: var(--ink-2); font-size: 0.9rem; }
+.phase ul { margin: 0; padding-left: 17px; font-size: 0.91rem; }
+.phase li { margin-bottom: 4px; }
+.gate {
+  margin: 10px 0 0; font-size: 0.85rem; color: var(--ink-2);
+  background: var(--ground); border-left: 2px solid var(--accent);
+  padding: 8px 12px; border-radius: 0 4px 4px 0;
+}
+
+/* --------------------------------------------------------------- sources */
+.sources { list-style: none; padding: 0; margin: 8px 0 0; font-size: 0.87rem; }
+.sources li { padding: 7px 0; border-top: 1px solid var(--line); }
+.sources li:first-child { border-top: none; }
+.sources a { color: var(--accent); text-decoration: none; word-break: break-word; }
+.sources a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+.raw summary { cursor: pointer; color: var(--ink-3); font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.raw pre {
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--ground); border: 1px solid var(--line); border-radius: 4px;
+  padding: 13px; font-family: var(--mono); font-size: 0.78rem; line-height: 1.6;
+  max-height: 440px; overflow: auto; margin-top: 11px;
+}
+
+.error-text { color: var(--critical); }
+.footer {
+  border-top: 1px solid var(--line);
+  padding: 20px 0 40px; margin-top: 8px;
+  color: var(--ink-3); font-size: 0.82rem;
+}
+
+@media (max-width: 560px) {
+  .meta-strip li { padding: 2px 10px; }
+  .dx-like { text-align: left; }
+}
+
+@media print {
+  .masthead, .footer, .submit-row, .raw, .tips { display: none !important; }
+  body { background: #fff; }
+  .card, .dx { box-shadow: none; break-inside: avoid; }
+}
+
+/* ------------------------------------------------------------ view slots */
+.slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 14px; }
+.slot {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ground);
+  padding: 13px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.slot.filled { border-color: var(--accent); }
+.slot.dragging { border-color: var(--accent); background: var(--accent-wash); }
+.slot-head {
+  font-family: var(--mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3);
+}
+.slot-tag {
+  display: inline-block; background: var(--panel-2); color: var(--ink);
+  border-radius: 3px; padding: 2px 7px; margin-right: 6px; font-weight: 700;
+}
+.slot.filled .slot-tag { background: var(--accent); color: var(--accent-ink); }
+.slot-why { margin: 0; font-size: 0.82rem; color: var(--ink-2); line-height: 1.45; }
+.slot-drop {
+  margin-top: auto;
+  border: 1px dashed var(--line-strong); border-radius: 4px;
+  background: var(--panel);
+  min-height: 78px; padding: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.slot-drop:hover, .slot-drop:focus-visible { border-color: var(--accent); outline: none; }
+.slot.filled .slot-drop { border-style: solid; cursor: default; }
+.slot-idle { font-family: var(--mono); font-size: 0.76rem; color: var(--accent); }
+.slot-preview { width: 100%; border-radius: 3px; background: #000; display: block; }
+.slot-name {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3);
+  word-break: break-all; line-height: 1.4;
+}
+.slot-clear { align-self: flex-start; font-size: 0.78rem; }
+</style>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="wrap">
+        <h1>
+          <svg width="30" height="18" viewBox="0 0 30 18" fill="none" aria-hidden="true">
+            <path d="M1 13 Q5 3 9 13 Q13 3 17 13 Q21 3 25 13" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" fill="none" />
+            <circle cx="9" cy="13" r="2.1" fill="currentColor" />
+            <circle cx="17" cy="13" r="2.1" fill="currentColor" />
+            <circle cx="1" cy="13" r="1.3" fill="currentColor" opacity="0.4" />
+            <circle cx="25" cy="13" r="1.3" fill="currentColor" opacity="0.4" />
+          </svg>
+          Stride
+        </h1>
+        <p class="tagline">
+          Up to three views of your horse in motion. Get a ranked list of what might be going on, and
+          what it takes to get them striding out again. Runs entirely in this browser tab.
+        </p>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div class="notice notice-warn" role="note">
+        <strong>This is a screening aid, not a diagnosis.</strong> It reads still frames from your video
+        and cannot palpate, feel a digital pulse, use hoof testers, flex a joint or run a nerve block —
+        the things that actually confirm a lameness. Use it to know what to look at and what to ask.
+        Anything painful, sudden or worsening needs a veterinarian.
+      </div>
+
+      <main>
+        <!-- ------------------------------------------------------------- KEY -->
+        <section id="view-key" hidden>
+          <div class="card">
+            <h2>Your Anthropic API key</h2>
+            <p class="card-sub">
+              This page talks to the Claude API directly from your browser, so it needs your key. The key
+              is used only for requests to <code>api.anthropic.com</code>, is never sent anywhere else, and
+              there is no server involved at any point.
+            </p>
+            <form id="key-form">
+              <label class="full">
+                API key
+                <input type="password" id="key-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+              </label>
+              <label class="checkline">
+                <input type="checkbox" id="key-remember" checked />
+                Keep it for this tab only (cleared when the tab closes)
+              </label>
+              <p class="error-text" id="key-error"></p>
+              <div class="submit-row">
+                <button type="submit" class="primary">Continue</button>
+                <p class="submit-note">Get a key at console.anthropic.com → Settings → API keys.</p>
+              </div>
+            </form>
+            <details class="tips">
+              <summary>What this costs, and what to watch</summary>
+              <ul>
+                <li>A three-view run uses roughly 60–70k tokens, most of it images and web research.</li>
+                <li>It takes about 8–12 minutes. Leave the tab open and awake — the work happens here.</li>
+                <li>Because this file holds your key in the page, treat it as a personal tool: don't host it
+                  on a shared server or hand the file to someone else with the key saved.</li>
+              </ul>
+            </details>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------------- UPLOAD -->
+        <section id="view-upload" hidden>
+          <form id="form" novalidate>
+            <div class="card">
+              <h2>1. The videos</h2>
+              <p class="card-sub">
+                Up to three views of the same horse, same session. Each answers a different question, and
+                they are not interchangeable. One is enough to start; three is far better.
+              </p>
+
+              <div class="slots">
+                <div class="slot" data-view="front">
+                  <input type="file" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Front</span> toward the camera</div>
+                  <p class="slot-why">Where the <strong>head nod</strong> is read — the key forelimb sign.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the front view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
+                </div>
+
+                <div class="slot" data-view="rear">
+                  <input type="file" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Rear</span> away from the camera</div>
+                  <p class="slot-why">Where the <strong>hip hike</strong> is read — the key hindlimb sign.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the rear view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
+                </div>
+
+                <div class="slot" data-view="side">
+                  <input type="file" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Side</span> lateral pass</div>
+                  <p class="slot-why">Stride length, foot flight, landing — and <strong>withers movement</strong>, which separates a real forelimb lameness from a hind-limb fake.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the side view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
+                </div>
+              </div>
+
+              <details class="tips">
+                <summary>How to shoot a set that's actually diagnostic</summary>
+                <ul>
+                  <li><strong>Trot, in hand, on a loose lead.</strong> A tight lead masks the head nod, which is the single most useful sign in the whole set.</li>
+                  <li><strong>Hard, flat, level ground.</strong> A driveway or aisle beats an arena for spotting foot pain.</li>
+                  <li><strong>Camera still on a fence post or tripod.</strong> Don't pan, don't zoom, don't walk with the horse — let it move through a fixed background so vertical movement can be measured against something stationary.</li>
+                  <li><strong>Front and rear:</strong> trot 25–30 m straight toward the camera, then straight away. Keep the whole horse in frame.</li>
+                  <li><strong>Side:</strong> square to the track, poll, withers and croup all visible and unobstructed, 6–8 consecutive strides in one take.</li>
+                  <li><strong>8–15 seconds each</strong>, good light, no long shadow stripes across the ground.</li>
+                </ul>
+              </details>
+            </div>
+
+            <div class="card">
+              <h2>2. About the horse</h2>
+              <p class="card-sub">
+                All optional — but every field you fill in sharpens the ranking. Age, discipline and how the
+                problem started are the ones that move the needle most.
+              </p>
+              <div class="grid">
+                <label>Name <input name="horseName" placeholder="Blue" /></label>
+                <label>Age <input name="age" placeholder="12 years" /></label>
+                <label>Breed / type <input name="breed" placeholder="Quarter Horse" /></label>
+                <label>Sex
+                  <select name="sex"><option value="">—</option><option>Mare</option><option>Gelding</option><option>Stallion</option></select>
+                </label>
+                <label>Discipline / job <input name="discipline" placeholder="Reining, ridden 5x a week" /></label>
+                <label>Gait in the video
+                  <select name="gait"><option value="">—</option><option>Walk</option><option>Trot</option><option>Canter</option><option>Walk and trot</option></select>
+                </label>
+                <label>Surface
+                  <select name="surface"><option value="">—</option><option>Hard (concrete, tarmac, packed dirt)</option><option>Arena / sand</option><option>Grass</option><option>Deep or soft footing</option></select>
+                </label>
+                <label>Shoeing
+                  <select name="shoeing"><option value="">—</option><option>Barefoot</option><option>Shod in front only</option><option>Shod all round</option><option>Corrective / therapeutic shoes</option></select>
+                </label>
+                <label>Weeks since the farrier <input name="farrierWeeks" placeholder="7" inputmode="numeric" /></label>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>3. The problem</h2>
+              <div class="grid">
+                <label>First noticed <input name="onset" placeholder="About 3 weeks ago" /></label>
+                <label>How it started
+                  <select name="onsetType"><option value="">—</option><option>Sudden — overnight or after a specific event</option><option>Gradual — crept up over weeks or months</option><option>Not sure</option></select>
+                </label>
+                <label>Since then it's been
+                  <select name="trajectory"><option value="">—</option><option>Getting worse</option><option>Unchanged</option><option>Getting better</option><option>Comes and goes</option></select>
+                </label>
+                <label>Footing makes it
+                  <select name="surfaceEffect"><option value="">—</option><option>Worse on hard ground</option><option>Worse on soft or deep ground</option><option>No clear difference</option></select>
+                </label>
+                <label>With work it
+                  <select name="warmupEffect"><option value="">—</option><option>Warms out of it — better after 10 minutes</option><option>Gets worse as work goes on</option><option>Stays about the same</option></select>
+                </label>
+              </div>
+              <label class="full">Previous injuries, diagnoses or surgeries
+                <textarea name="history" rows="2" placeholder="Suspensory strain in the left hind, 2022"></textarea>
+              </label>
+              <label class="full">Current medications or supplements
+                <textarea name="medications" rows="2" placeholder="Bute 1g as needed; joint supplement"></textarea>
+              </label>
+              <label class="full">Anything else you've noticed
+                <textarea name="notes" rows="3" placeholder="Reluctant to pick up the right lead. Stumbles going downhill."></textarea>
+              </label>
+            </div>
+
+            <div class="submit-row">
+              <button type="submit" id="submit" class="primary" disabled>Analyse gait</button>
+              <p class="submit-note" id="submit-note">Add at least one video to begin.</p>
+              <button type="button" class="link-btn" id="forget-key">Change API key</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- --------------------------------------------------------- WORKING -->
+        <section id="view-working" hidden>
+          <div class="card working">
+            <div class="spinner" aria-hidden="true"></div>
+            <h2>Analysing</h2>
+            <p class="working-note">
+              This usually takes eight to twelve minutes. Frames are captured here in your browser, then the
+              gait pass and the research pass both run at full depth — leave this tab open and awake.
+            </p>
+            <ol class="log" id="log" aria-live="polite"></ol>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------------- REPORT -->
+        <section id="view-report" hidden>
+          <div id="report"></div>
+          <div class="submit-row">
+            <button type="button" class="primary" id="restart">Analyse another case</button>
+            <button type="button" class="secondary" id="print">Save / print report</button>
+          </div>
+        </section>
+
+        <!-- ----------------------------------------------------------- ERROR -->
+        <section id="view-error" hidden>
+          <div class="card">
+            <h2>Something went wrong</h2>
+            <p id="error-message" class="error-text"></p>
+            <button type="button" class="primary" id="retry">Back</button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>
+          Stride is an educational screening tool. It does not diagnose, prescribe, or replace a veterinary
+          examination. If your horse is non-weight-bearing, badly lame, or you suspect laminitis or a
+          fracture, call your vet now.
+        </p>
+      </footer>
+    </div>
+
+    <script>window.__STRIDE__ = {"knowledge":"## AAEP LAMENESS GRADING SCALE (0-5)\n  Grade 0: Lameness not perceptible under any circumstances.\n  Grade 1: Difficult to observe; not consistently apparent regardless of circumstances (under saddle, circling, inclines, hard surface).\n  Grade 2: Difficult to observe at a walk or trotting in a straight line, but consistently apparent under certain circumstances (weight-carrying, circling, inclines, hard surface).\n  Grade 3: Consistently observable at a trot under all circumstances.\n  Grade 4: Obvious lameness: marked head bob, hip hike or shortened stride. Trot is reluctant, choppy, clearly abnormal. Bears weight at rest but moves with apparent pain.\n  Grade 5: Non-weight-bearing, or minimal weight bearing at rest and/or in motion. Cannot use the limb for locomotion.\n\n## READING LATERALITY FROM FOOTAGE\nFORELIMB — the head nod (\"down on sound\"):\n  The head and neck RISE as the LAME forelimb strikes the ground and FALL as the\n  SOUND forelimb strikes. The horse offloads the painful limb by lifting the\n  forehand over it. So: the limb on the ground when the head is DOWN is the SOUND\n  limb; the limb on the ground when the head is UP is the LAME limb.\n  Withers vertical movement asymmetry corroborates this.\n\nHINDLIMB — pelvic asymmetry (\"hip hike\" / sacral rise):\n  Asymmetric vertical motion of the tubera sacrale and tubera coxae is the most\n  consistent and observable sign. The tuber coxae on the LAME side travels through\n  a greater range — rising higher during that limb's stance/push-off and dropping\n  lower when the sound limb bears weight. Reduced pelvic fall on the lame side\n  during impact (\"hip dip\" reduction) and a shortened cranial phase of stride are\n  supporting signs.\n\nBILATERAL DISEASE HIDES ITSELF:\n  Symmetric bilateral pain (classically bilateral navicular, bilateral hock OA,\n  laminitis in both fores) may produce NO head nod or hip hike at all. Instead look\n  for: short choppy pottery stride, reduced overtrack, unwillingness to extend,\n  toe-first landing, \"walking on eggshells\", stiffness that eases with warm-up\n  (arthritic) or worsens with work (soft tissue / laminitic).\n\nCOMPENSATORY PATTERNS — a common trap:\n  A primary HINDLIMB lameness frequently induces a false head nod that mimics an\n  IPSILATERAL forelimb lameness. A primary FORELIMB lameness can induce apparent\n  contralateral hindlimb asymmetry. When both a head nod and pelvic asymmetry are\n  present, say so and flag which is more likely primary rather than reporting two\n  independent lamenesses.\n\nCIRCLES AND SURFACES:\n  Lameness of the INSIDE limb usually worsens on a circle toward that side. Foot\n  and joint pain typically worsens on hard ground; soft-tissue (suspensory,\n  tendon) pain often worsens on soft/deep footing and on the outside limb of a\n  circle. Visual assessment reliably detects asymmetry only above roughly 25% —\n  subtle grade 1 lameness may be genuinely invisible on video.\n\n## RED FLAGS REQUIRING IMMEDIATE VETERINARY ATTENTION\n- Non-weight-bearing or barely weight-bearing on any limb (AAEP grade 5) — possible fracture, septic joint or severe abscess.\n- Sudden severe lameness after a fall, kick or fast work.\n- Rocked-back sawhorse stance, bounding digital pulses, or extreme reluctance to turn — suspect laminitis.\n- Visible open wound near or over a joint or tendon sheath — a septic synovial structure is a surgical emergency.\n- Ataxia, limb crossing, stumbling or knuckling — a neurologic horse is unsafe to ride.\n- Rapidly worsening lameness, or lameness with fever, sweating or colic-like signs.\n- Marked swelling with heat and severe pain over a tendon or joint.\n\n## CONDITION REFERENCE LIBRARY\n### Subsolar / hoof abscess\nRegion: Front or hind foot\nPrevalence: very common\nTypical signalment: Any age or type; more frequent in wet-then-dry conditions and after hoof trauma.\nGait signs visible on video: Sudden-onset, often severe (AAEP 3-5) unilateral lameness with no prior warning. Marked head nod. Horse may point or non-weight-bear. Frequently mistaken for a fracture because of severity.\nCorroborating findings (usually NOT visible on video — must be checked in person): Increased digital pulse in the affected limb, heat in the hoof, pain on hoof testers over a focal spot, possible coronary band swelling if draining.\nConfirmatory diagnostics: Hoof testers; Pare to find the tract; Radiographs if it fails to resolve or the horse is severely lame\nRemedies — immediate: Stop work. Confine to a stall or small pen with soft bedding. Cold-hose or poultice.\nRemedies — veterinary: Vet or experienced farrier establishes drainage. Poultice (Animalintex / ichthammol) with a hoof wrap changed daily. Tetanus status confirmed. NSAIDs only under veterinary direction — masking pain before drainage delays diagnosis.\nRemedies — farriery: Once drained, keep the tract clean and dry; consider a hospital plate or treatment plate if the hole is large.\nRemedies — rehabilitation/conditioning: Hand-walk once sound, then rebuild over 1-2 weeks. No lasting conditioning loss.\nExpected timeline: Dramatic improvement within 24-48 hours of drainage; sound in 3-10 days.\nPrognosis: Excellent.\n\n### Navicular syndrome / podotrochlear pain\nRegion: Front feet (palmar foot)\nPrevalence: very common\nTypical signalment: Peak incidence around 9 years, range 3-18. Quarter Horses, Thoroughbreds and warmbloods over-represented. Upright, small or underrun feet increase risk.\nGait signs visible on video: Chronic, intermittent, usually BILATERAL forelimb lameness — often no head nod, just a short, choppy, pottery front-end stride with reduced extension. Toe-first landing. Worse on hard ground and on circles; worse on the inside limb. Stumbling. Often described by owners as \"he just doesn't track up in front\".\nCorroborating findings (usually NOT visible on video — must be checked in person): Positive to hoof testers over the central frog, worse after distal limb flexion, improves on soft footing.\nConfirmatory diagnostics: Palmar digital nerve block; Radiographs of the navicular bone; MRI is the definitive test for soft-tissue podotrochlear injury\nRemedies — immediate: Reduce work on hard and uneven ground. Do not keep pushing through it.\nRemedies — veterinary: Confirm with blocks and imaging before treating. Options include NSAIDs, intra-articular or navicular-bursa medication, bisphosphonates (tiludronate/clodronate, in horses over 4 years), and shockwave therapy.\nRemedies — farriery: The single highest-value intervention. Shorten the toe, restore breakover, support the heels — rolled/rocker toe with a bar or egg-bar shoe, and correct any medio-lateral imbalance. Shoeing cycle every 4-6 weeks, never longer.\nRemedies — rehabilitation/conditioning: Controlled work on good, level, forgiving footing. Straight lines before circles. Build hindquarter engagement so the horse stops loading the forehand.\nExpected timeline: Response to corrective shoeing is usually visible over 2-3 shoeing cycles (8-18 weeks).\nPrognosis: Manageable rather than curable. Many horses return to full work with sustained farriery and workload management; degenerative cases decline over years.\n\n### Laminitis\nRegion: Both front feet (occasionally all four)\nPrevalence: common\nTypical signalment: Strongly associated with equine metabolic syndrome, PPID/Cushing's, obesity, grain overload, lush pasture, and supporting-limb overload after severe contralateral injury.\nGait signs visible on video: Bilateral forelimb — often no head nod. Classic sawhorse/rocked-back stance with weight shifted onto the heels and hindquarters. Extremely reluctant to turn (pivots stiffly). Short, shuffling, \"walking on eggshells\" gait, markedly worse on hard ground. Repeated weight-shifting at rest.\nCorroborating findings (usually NOT visible on video — must be checked in person): Strong bounding digital pulses, heat in the hooves, pain across the toe with hoof testers, cresty neck, prior founder rings.\nConfirmatory diagnostics: Immediate veterinary examination; Lateral radiographs to measure rotation/sinking; ACTH and insulin testing for underlying endocrine disease\nRemedies — immediate: EMERGENCY — call a veterinarian today. Remove all grain and pasture access. Confine to deep soft bedding or sand. Do NOT force the horse to walk for assessment. Ice the feet if the onset is acute (within 48h).\nRemedies — veterinary: Analgesia, treat the underlying cause (endocrine testing is essential, not optional), mechanical support of the coffin bone.\nRemedies — farriery: Frog and sole support (styrofoam pads, clogs, heart-bar shoes) fitted in consultation with the vet and radiographs. Toe shortened to reduce leverage on the laminae.\nRemedies — rehabilitation/conditioning: Strictly stall rest until radiographs are stable, then very gradual return. Long-term diet and weight management is the actual cure.\nExpected timeline: Weeks to many months; endocrine management is lifelong.\nPrognosis: Guarded and entirely dependent on degree of rotation/sinking and control of the underlying metabolic disease.\n\n### Bruised sole / corn\nRegion: Foot\nPrevalence: common\nTypical signalment: Thin-soled and flat-footed horses; after work on stony ground or a poor trim.\nGait signs visible on video: Mild to moderate lameness (AAEP 2-3), noticeably worse on hard or stony footing and better on soft going.\nCorroborating findings (usually NOT visible on video — must be checked in person): Diffuse hoof-tester pain, sometimes visible red discolouration in the sole at the next trim.\nConfirmatory diagnostics: Hoof testers; Radiographs if it fails to resolve, to rule out pedal osteitis or a fracture\nRemedies — immediate: Rest on soft footing, cold-hose.\nRemedies — veterinary: NSAIDs short-term if the vet agrees.\nRemedies — farriery: Pads or a wider-web shoe; address the thin sole and any medio-lateral imbalance.\nRemedies — rehabilitation/conditioning: Return to work as soundness allows, avoiding stony ground.\nExpected timeline: 5-14 days.\nPrognosis: Very good, but recurrent if the underlying foot conformation and trim are not addressed.\n\n### Superficial digital flexor tendonitis (\"bowed tendon\")\nRegion: Palmar/plantar cannon, usually forelimb\nPrevalence: common\nTypical signalment: Racing, eventing, jumping; fatigue and deep or uneven footing are major risk factors.\nGait signs visible on video: Acute onset lameness, variable severity, often shortened cranial phase of stride. May be markedly worse on soft/deep footing. Some chronic cases trot near-sound but show a persistent convex \"bow\" behind the cannon.\nCorroborating findings (usually NOT visible on video — must be checked in person): Heat, swelling and pain on palpation of the tendon; visible bowed contour viewed from the side.\nConfirmatory diagnostics: Ultrasound (the definitive test — quantifies lesion cross-sectional area); Serial ultrasound to guide return to work\nRemedies — immediate: Stop work immediately. Cold therapy and a support bandage. Box rest pending ultrasound.\nRemedies — veterinary: Ultrasound-guided staging. Options include controlled rehabilitation (the mainstay), regenerative therapy (PRP, stem cells) and shockwave. Reinjury risk is what kills careers, so the rehab plan matters more than the injection.\nRemedies — farriery: Balanced trim; avoid long toe / low heel which increases tendon strain.\nRemedies — rehabilitation/conditioning: Months-long, ultrasound-checked, progressive: box rest with hand-walking, then increasing walk, then trot, then canter, then turnout. Do not shortcut this — the tendon remodels slowly.\nExpected timeline: 6-12 months to full work.\nPrognosis: Fair to good for return to work; reinjury rate is significant, particularly in racehorses.\n\n### Proximal suspensory desmitis\nRegion: Upper cannon, fore or hind\nPrevalence: common\nTypical signalment: Sport horses, dressage horses; hindlimb form is common in horses with straight hocks or dropped fetlocks.\nGait signs visible on video: Often insidious rather than acute. Hindlimb form: poor hindquarter engagement, reduced push-off, shortened cranial stride phase, \"not going forward\". Frequently WORSE on soft/deep footing and on the OUTSIDE limb of a circle — the opposite of foot pain. May be bilateral and therefore show as loss of performance rather than obvious lameness.\nCorroborating findings (usually NOT visible on video — must be checked in person): Pain on deep palpation just below the hock/carpus; worse after proximal limb flexion.\nConfirmatory diagnostics: Regional nerve blocks; Ultrasound; MRI or scintigraphy for hindlimb cases where ultrasound is equivocal\nRemedies — immediate: Reduce workload; avoid deep footing.\nRemedies — veterinary: Shockwave therapy, regenerative injections, and in refractory hindlimb cases neurectomy/fasciotomy of the deep branch of the lateral plantar nerve.\nRemedies — farriery: Support the heels and shorten breakover; correct any dropped-fetlock/long-toe conformation contribution.\nRemedies — rehabilitation/conditioning: Straight-line controlled exercise on firm, even footing, avoiding circles early. Core and hindquarter strengthening (pole work, hill work) once cleared.\nExpected timeline: 3-9 months; hindlimb cases are slower than forelimb.\nPrognosis: Good in the forelimb, more guarded in the hindlimb.\n\n### Fetlock joint synovitis / osteoarthritis\nRegion: Fetlock, fore or hind\nPrevalence: common\nTypical signalment: Older performance horses; high-speed and high-impact disciplines.\nGait signs visible on video: Shortened stride, reduced fetlock extension, lameness worse after work and on hard ground; positive to fetlock flexion.\nCorroborating findings (usually NOT visible on video — must be checked in person): Joint effusion, thickened joint capsule, reduced range of motion on manipulation.\nConfirmatory diagnostics: Intra-articular block; Radiographs; Ultrasound for the collateral and sesamoidean ligaments\nRemedies — immediate: Reduce concussive work; cold therapy after exercise.\nRemedies — veterinary: Intra-articular corticosteroid/hyaluronan, systemic polysulphated glycosaminoglycans, NSAIDs as directed.\nRemedies — farriery: Ease breakover; keep the foot balanced to reduce torque on the joint.\nRemedies — rehabilitation/conditioning: Consistent low-impact work beats stop-start. Warm up long, work on good footing.\nExpected timeline: Ongoing management; improvement within 1-3 weeks of joint medication.\nPrognosis: Good with management for mild cases; degenerative change is permanent.\n\n### Ringbone (pastern or coffin joint osteoarthritis)\nRegion: Pastern / coffin joint\nPrevalence: common\nTypical signalment: Middle-aged and older horses; conformational imbalance and repeated concussion.\nGait signs visible on video: Chronic, progressive, worse on hard ground and circles. Shortened stride; may show a distinct head nod once moderate.\nCorroborating findings (usually NOT visible on video — must be checked in person): Palpable firm bony enlargement around the pastern (high ringbone); reduced pastern flexion.\nConfirmatory diagnostics: Radiographs; Regional/intra-articular blocks\nRemedies — immediate: Move work onto softer, even footing.\nRemedies — veterinary: NSAIDs, joint medication; surgical arthrodesis for advanced pastern-joint cases.\nRemedies — farriery: Balanced trim with eased breakover in all directions to reduce joint torque — a very high-value intervention here.\nRemedies — rehabilitation/conditioning: Regular light exercise to preserve range of motion; avoid deep and uneven ground.\nExpected timeline: Management is lifelong; comfort usually improves within weeks of shoeing changes and medication.\nPrognosis: Fair; many horses stay in light-to-moderate work for years.\n\n### Carpal (knee) osteoarthritis or chip fracture\nRegion: Carpus\nPrevalence: moderately common\nTypical signalment: Racehorses and jumpers particularly.\nGait signs visible on video: Shortened cranial phase, reduced carpal flexion, may swing the limb outward to avoid flexing. Worse after carpal flexion.\nCorroborating findings (usually NOT visible on video — must be checked in person): Carpal effusion, pain on flexion, reduced flexion angle.\nConfirmatory diagnostics: Radiographs including flexed and skyline views; Intra-articular block\nRemedies — immediate: Rest from fast work.\nRemedies — veterinary: Arthroscopic removal of chips where present; joint medication for OA.\nRemedies — farriery: Balanced trim to reduce abnormal loading.\nRemedies — rehabilitation/conditioning: Graduated return after surgery, typically 3-6 months.\nExpected timeline: Post-arthroscopy return to work commonly 3-6 months.\nPrognosis: Good after chip removal if articular cartilage is intact.\n\n### Shoulder / upper limb pain (bicipital bursitis, OA, muscle injury)\nRegion: Shoulder\nPrevalence: uncommon\nTypical signalment: Trauma, collisions, falls; occasionally OCD in young horses.\nGait signs visible on video: Markedly shortened CRANIAL phase of stride — the limb does not reach forward — with a low arc of foot flight and possible circumduction. Worse going downhill. Muscle atrophy over the shoulder in chronic cases.\nCorroborating findings (usually NOT visible on video — must be checked in person): Pain on shoulder extension/flexion, localised atrophy.\nConfirmatory diagnostics: Ultrasound; Radiographs; Scintigraphy — proximal limb lameness is genuinely difficult to localise\nRemedies — immediate: Rest.\nRemedies — veterinary: Bursa medication, systemic anti-inflammatories, treat the specific structure once identified.\nRemedies — farriery: Minimal role.\nRemedies — rehabilitation/conditioning: Long-slow-distance straight-line work; physiotherapy and controlled stretching.\nExpected timeline: 2-6 months.\nPrognosis: Variable; depends heavily on the structure involved.\n\n### Distal hock osteoarthritis (bone spavin)\nRegion: Distal tarsal joints\nPrevalence: very common\nTypical signalment: Middle-aged sport horses of every discipline; over-represented in dressage, western performance and jumping. Sickle- or cow-hocked conformation increases risk.\nGait signs visible on video: Frequently BILATERAL, so often no clear hip hike — instead a short, stabby hind stride, poor engagement, reduced overtrack, dragging or scuffing the hind toes, difficulty with canter leads and lateral work, \"cold-backed\" and stiff at the start of work that eases with warm-up. Worse on circles.\nCorroborating findings (usually NOT visible on video — must be checked in person): Strongly positive to full-limb (spavin) flexion, worse on a small circle on hard ground, toe wear on the hind shoes.\nConfirmatory diagnostics: Spavin flexion test; Intra-articular blocks of the tarsometatarsal and distal intertarsal joints; Radiographs\nRemedies — immediate: Keep the horse moving — box rest makes spavin worse, not better.\nRemedies — veterinary: Intra-articular corticosteroids into the distal hock joints (the mainstay), systemic NSAIDs, bisphosphonates in selected cases; chemical or surgical arthrodesis for advanced cases, which can leave the horse very comfortable once fused.\nRemedies — farriery: Ease breakover, slight lateral extension or a rolled toe on hind shoes to reduce twisting at the hock. Keep the shoeing cycle tight.\nRemedies — rehabilitation/conditioning: Long warm-up, straight-line and hill work to build hindquarter strength, pole work for engagement. Consistent daily turnout. Avoid repetitive small circles until comfortable.\nExpected timeline: Improvement within 1-2 weeks of joint injection; conditioning gains over 2-3 months.\nPrognosis: Good — this is one of the most successfully managed causes of poor hind-end performance.\n\n### Stifle pain (medial femorotibial pain, meniscal injury, or OCD)\nRegion: Stifle\nPrevalence: common\nTypical signalment: Young horses for OCD; performance horses of any age for soft-tissue injury; straight-stifled conformation.\nGait signs visible on video: Shortened cranial phase behind, reluctance to push off, difficulty with downhill work and tight turns, dragging the hind toe. May show a pronounced hip hike. Horse often struggles to canter or repeatedly takes the wrong lead.\nCorroborating findings (usually NOT visible on video — must be checked in person): Stifle effusion, positive to upper-limb flexion, pain on direct pressure.\nConfirmatory diagnostics: Radiographs; Ultrasound; Arthroscopy for definitive meniscal/cartilage assessment\nRemedies — immediate: Stop jumping and hill work.\nRemedies — veterinary: Intra-articular medication, regenerative therapy, arthroscopic surgery for OCD lesions or meniscal tears.\nRemedies — farriery: Balanced trim; avoid excessive heel elevation.\nRemedies — rehabilitation/conditioning: Strengthening is central — straight-line hill work, pole work, backing up, and controlled hand-walking build the quadriceps and stabilise the joint.\nExpected timeline: 3-9 months depending on the lesion.\nPrognosis: Good for OCD after surgery in young horses; more guarded for meniscal tears.\n\n### Upward fixation of the patella / delayed patellar release\nRegion: Stifle\nPrevalence: moderately common\nTypical signalment: Young, unfit, straight-hocked horses; horses returning from a layup; ponies.\nGait signs visible on video: Very distinctive: the hindlimb momentarily LOCKS in extension and is dragged, then releases with a snap or jerk. Milder cases show a delayed, jerky release of the stifle at the start of stride, worst at walk, at the start of work, and going downhill; often improves as the horse warms up.\nCorroborating findings (usually NOT visible on video — must be checked in person): Audible or palpable click; the limb can sometimes be manually unlocked.\nConfirmatory diagnostics: Clinical observation — the pattern is usually diagnostic; Radiographs to exclude concurrent joint disease\nRemedies — immediate: Avoid box rest, which worsens it. Increase controlled turnout.\nRemedies — veterinary: Conditioning first. If it persists: counter-irritant injection of the medial patellar ligament, or medial patellar desmoplasty/desmotomy as a last resort.\nRemedies — farriery: Slightly raise the heel and ease breakover.\nRemedies — rehabilitation/conditioning: THE primary treatment is quadriceps strengthening: hill work, backing up, cavaletti and pole work, long straight-line trotting. Many young horses simply outgrow it once fit.\nExpected timeline: 4-12 weeks of consistent conditioning.\nPrognosis: Very good, especially in young horses that are simply unfit.\n\n### Sacroiliac dysfunction\nRegion: Pelvis / sacroiliac\nPrevalence: moderately common\nTypical signalment: Tall, long-backed sport horses; dressage and jumping; often secondary to a chronic hindlimb lameness.\nGait signs visible on video: Poor hindquarter engagement and loss of power rather than obvious limping. Asymmetric pelvic movement, bunny-hopping in canter, disunited canter, refusal to work through the back, resistance to lateral work. Asymmetry of the tubera sacrale (\"hunter's bump\") in chronic cases.\nCorroborating findings (usually NOT visible on video — must be checked in person): Pain on pressure over the tubera sacrale and coxae; asymmetry of the gluteal musculature.\nConfirmatory diagnostics: Ultrasound; Scintigraphy; Diagnostic injection of the sacroiliac region\nRemedies — immediate: Rule out a primary hindlimb lameness first — SI pain is frequently secondary.\nRemedies — veterinary: Corticosteroid injection of the SI region, shockwave, mesotherapy.\nRemedies — farriery: Indirect; correct any hind imbalance driving compensation.\nRemedies — rehabilitation/conditioning: Core and topline rehabilitation is the treatment: baited stretches, pelvic lifts, pole and hill work, long-and-low straight-line work. Physiotherapy is genuinely valuable here.\nExpected timeline: 3-6 months of consistent rehab work.\nPrognosis: Fair to good if the primary driver is found and addressed.\n\n### Curb / plantar ligament desmitis\nRegion: Plantar hock\nPrevalence: moderately common\nTypical signalment: Sickle-hocked horses; jumping and racing.\nGait signs visible on video: Mild hindlimb lameness, sometimes only visible when fresh; visible convex swelling on the plantar aspect of the hock viewed from the side.\nCorroborating findings (usually NOT visible on video — must be checked in person): Heat, swelling and pain on palpation of the plantar hock.\nConfirmatory diagnostics: Ultrasound\nRemedies — immediate: Cold therapy, reduce work.\nRemedies — veterinary: Anti-inflammatories, shockwave.\nRemedies — farriery: Correct sickle-hock loading where possible.\nRemedies — rehabilitation/conditioning: Controlled exercise; return as ultrasound allows.\nExpected timeline: 6-12 weeks.\nPrognosis: Good; the cosmetic blemish often persists after soundness returns.\n\n### Neurologic gait deficit (e.g. cervical vertebral stenotic myelopathy, EPM)\nRegion: Neurologic — not a true lameness\nPrevalence: uncommon but critical not to miss\nTypical signalment: Young rapidly-growing horses (CVSM); any horse in EPM-endemic areas.\nGait signs visible on video: Ataxia rather than lameness: swaying, limb crossing or interference, toe dragging, circumduction of the hind limbs, a wide-based stance, stumbling, and difficulty with tight turns and backing. Signs are typically WORSE on turns, slopes and when the head is elevated, and do not follow a clean single-limb lameness pattern. Asymmetric muscle atrophy suggests EPM.\nCorroborating findings (usually NOT visible on video — must be checked in person): Poor proprioceptive placement, abnormal tail pull, delayed limb replacement after crossing.\nConfirmatory diagnostics: Full neurologic examination by a veterinarian; Cervical radiographs / myelogram; CSF analysis and serology for EPM\nRemedies — immediate: Do not ride. An ataxic horse is a safety risk to its rider and itself. Arrange veterinary neurologic assessment.\nRemedies — veterinary: Diagnosis-specific: anti-protozoal therapy for EPM; anti-inflammatories and, in selected cases, surgical stabilisation for CVSM.\nRemedies — farriery: Minimal role.\nRemedies — rehabilitation/conditioning: Only under veterinary direction once a diagnosis is established.\nExpected timeline: Weeks to months; some deficits are permanent.\nPrognosis: Variable and often guarded.\n\n### Poor hoof balance / long-toe low-heel conformation\nRegion: Foot — a driver of many other conditions\nPrevalence: very common\nTypical signalment: Any horse on an over-long shoeing cycle.\nGait signs visible on video: Not itself a lameness diagnosis but a frequent visible finding on video: broken-back hoof-pastern axis, underrun heels, long toe, delayed breakover, toe-first or lateral-first landing, uneven foot flight arc. Drives navicular pain, suspensory strain and tendonitis.\nCorroborating findings (usually NOT visible on video — must be checked in person): Flares, dish, uneven heel height, shoes visibly set back or sprung.\nConfirmatory diagnostics: Farrier assessment; Lateral and dorsopalmar foot radiographs to measure palmar angle and medio-lateral balance\nRemedies — immediate: Book the farrier.\nRemedies — veterinary: Radiographic hoof mapping is worth doing once, to guide the trim precisely.\nRemedies — farriery: Restore the hoof-pastern axis: back the toe up, support the heels, correct medio-lateral imbalance. Shorten the cycle to 4-6 weeks.\nRemedies — rehabilitation/conditioning: Nothing specific — correct the feet and much else improves on its own.\nExpected timeline: 2-4 shoeing cycles to substantially remodel.\nPrognosis: Excellent; this is the cheapest and highest-yield change most owners can make.\n\n### Muscle soreness / overtraining / myopathy\nRegion: Musculature, often hindquarters and back\nPrevalence: common\nTypical signalment: Horses in hard work, after a sudden increase in workload, or with PSSM/RER predisposition.\nGait signs visible on video: Stiff, short, symmetric gait; reluctance to go forward; shortened stride behind; may improve with warm-up (or in the case of tying-up, worsen dramatically). Not lame in a single limb.\nCorroborating findings (usually NOT visible on video — must be checked in person): Firm painful muscles on palpation, sweating, reluctance to move after work.\nConfirmatory diagnostics: Serum CK and AST; Genetic testing for PSSM1; Muscle biopsy in refractory cases\nRemedies — immediate: Stop work. In an acute tying-up episode do NOT walk the horse back — call the vet.\nRemedies — veterinary: Bloodwork; fluids and analgesia in acute cases; dietary reformulation for PSSM/RER.\nRemedies — farriery: Not applicable.\nRemedies — rehabilitation/conditioning: Consistent daily exercise with no days off, gradual workload increases, and turnout.\nExpected timeline: Days for simple soreness; lifelong management for PSSM.\nPrognosis: Good with correct diet and a consistent exercise routine.","observerSystem":"You are assisting a veterinary lameness workup by analysing still frames sampled from video of a\nhorse in motion. The frames arrive in dense bursts — see the sampling note in the user message,\nwhich tells you exactly which frames are consecutive stride phases and which are seconds apart.\n\nYou may be given up to THREE separate clips of the same horse in the same session, each from a\ndifferent camera view, clearly labelled. Each view answers different questions and they are not\ninterchangeable:\n\n  FRONT (toward the camera) — the HEAD NOD lives here. Also medio-lateral limb deviation.\n  REAR  (away from the camera) — the HIP HIKE / sacral rise lives here. Also hindlimb tracking.\n  SIDE  (lateral pass) — stride length, overtrack, cranial vs caudal phase, foot flight arc,\n        landing pattern, hoof-pastern axis, and WITHERS movement.\n\nUse them together. The single most valuable cross-view inference available to you: WITHERS movement\nfrom the SIDE view distinguishes a genuine forelimb lameness from a hindlimb-induced false head nod\nseen from the FRONT. In true forelimb lameness the withers asymmetry tracks with the head nod; in\nhindlimb-induced compensation it shifts toward the opposite side. If you have both views, make that\ncall explicitly. If a view is missing, say what it would have resolved.\n\nCompare findings across views and state whether they agree. Two views independently implicating the\nsame limb is far stronger evidence than one view alone; two views disagreeing is itself a finding\nand usually means the asymmetry is below the reliable detection threshold.\n\nYour job in this pass is OBSERVATION and RESEARCH, not a final report.\n\nWork in this order:\n\n1. Describe what is physically visible, frame by frame where it matters. Track across the\n   sequence: head and neck vertical excursion and which forelimb is grounded at each extreme;\n   pelvic and tuber coxae symmetry; stride length and overtrack; cranial versus caudal phase of\n   stride; foot flight arc; landing pattern (toe-first, flat, heel-first); hoof-pastern axis;\n   hoof length and heel height; muscle symmetry over shoulder, gluteals and topline; head carriage,\n   back posture and tail position; any swelling, effusion, wound or postural abnormality.\n\n2. Apply the laterality rules explicitly. State the rule, then the observation, then the\n   conclusion. If the frames genuinely do not support a laterality call, say so plainly rather\n   than guessing — an unsupported limb call is worse than no limb call.\n\n3. Explicitly consider whether any asymmetry is compensatory rather than a second primary problem,\n   and whether a symmetric bilateral problem could be hiding behind an apparently even gait.\n\n4. Assess how good this footage actually is for the purpose, and what a better clip would show.\n\n5. Then use web search to check your reading against current published sources. Search for the\n   specific presentation you observed — the gait pattern combined with the signalment and history —\n   and for how confirmed cases of your leading candidates are described. Look for how practitioners\n   distinguish between the candidates you are weighing, and for anything that would reorder them.\n   Run several focused searches rather than one broad one, and prefer veterinary-school, journal,\n   and established clinical sources. Note briefly where a source changed your thinking.\n\nBe rigorous about uncertainty. Still frames sampled from video cannot show you palpation, heat,\ndigital pulse, hoof-tester response, flexion tests or nerve blocks, and visual assessment misses\nasymmetry below roughly 25%. Say what you cannot see.\n\nReason from prevalence: common conditions are common. A middle-aged sport horse with a short\nchoppy hind gait is far more likely to have distal hock arthritis than a rare neoplasm.","reportSystem":"You are producing an owner-facing lameness screening report from a completed observation and\nresearch pass. Return only the structured report in the required schema.\n\nRules:\n\n- Rank the differential from MOST LIKELY AND COMMON to least likely. Prevalence in the general\n  horse population, weighted by this horse's signalment and history, is the primary ordering\n  criterion; specific visual evidence moves a condition up or down from there. Include between\n  three and seven candidates. Always include at least one \"unlikely but important to exclude\"\n  entry when a serious condition is plausible.\n- Every ranked condition must carry both supporting AND contradicting evidence. If the footage\n  cannot assess something relevant, that belongs in againstEvidence.\n- Remedies must be specific and actionable — actual exercises, actual shoeing changes, actual\n  timelines. Frame veterinary treatments as options to discuss with a vet, never as instructions\n  the owner should carry out alone. Never suggest a prescription medication, dose, or a\n  joint injection the owner would administer themselves.\n- If the emergency red flags are met, set isEmergency true, and make the immediate remedy for the\n  top-ranked condition \"contact your veterinarian today\" rather than anything the owner should try.\n- The stride optimisation plan must be explicitly conditional on veterinary clearance, and phased\n  with objective criteria for moving between phases.\n- Write for a competent horse owner: plain language, no hedging into uselessness, technical terms\n  explained the first time they appear.\n- Be honest in limitations. This is a screening aid built on still frames, not a diagnosis.\n- Fill viewsAnalyzed with one entry per view supplied, saying what each established. Add an entry\n  with view \"not supplied\" for each of front/rear/side that is missing, saying what could not be\n  assessed without it. Do not pad: if all three were supplied and usable, say so plainly.","viewPurpose":{"front":"FRONT view (horse trotting TOWARD the camera) — this is where the HEAD NOD is read, and where medio-lateral limb deviation (winging, paddling, plaiting) is visible.","rear":"REAR view (horse moving AWAY from the camera) — this is where the HIP HIKE / sacral rise is read, and where hindlimb tracking and base width are visible.","side":"SIDE view (lateral pass) — this is where stride length, overtrack, cranial vs caudal phase, foot flight arc, landing pattern, hoof-pastern axis and WITHERS movement are visible. Withers movement is the sign that separates a true forelimb lameness from a hindlimb-induced false nod."},"schema":{"type":"object","additionalProperties":false,"required":["emergency","viewsAnalyzed","videoQuality","gaitAssessment","differential","strideOptimizationPlan","vetVisitChecklist","limitations"],"properties":{"viewsAnalyzed":{"type":"array","description":"One entry per camera view supplied, stating what that view did and did not contribute. Name any of the three standard views (front, rear, side) that were NOT supplied and what was lost as a result.","items":{"type":"object","additionalProperties":false,"required":["view","usable","contributed"],"properties":{"view":{"type":"string","enum":["front","rear","side","not supplied"]},"usable":{"type":"boolean","description":"Whether this view was of good enough quality to contribute findings."},"contributed":{"type":"string","description":"What this view established, or — for a missing view — what could not be assessed without it."}}}},"emergency":{"type":"object","additionalProperties":false,"required":["isEmergency","reasons"],"properties":{"isEmergency":{"type":"boolean","description":"True if anything in the footage or intake matches a red flag needing same-day veterinary attention."},"reasons":{"type":"array","items":{"type":"string"},"description":"Specific red flags observed. Empty when isEmergency is false."}}},"videoQuality":{"type":"object","additionalProperties":false,"required":["rating","issues","suggestions"],"properties":{"rating":{"type":"string","enum":["good","fair","poor","unusable"],"description":"How well this footage supports a gait assessment."},"issues":{"type":"array","items":{"type":"string"},"description":"What limits the assessment (angle, distance, surface, gait shown, motion blur, obstruction)."},"suggestions":{"type":"array","items":{"type":"string"},"description":"Concrete instructions for reshooting a more diagnostic clip."}}},"gaitAssessment":{"type":"object","additionalProperties":false,"required":["gaitsObserved","aaepGrade","aaepGradeRationale","affectedLimbs","keyObservations","compensatoryPattern"],"properties":{"gaitsObserved":{"type":"array","items":{"type":"string"},"description":"Gaits actually visible in the footage, e.g. walk, trot, canter."},"aaepGrade":{"type":"string","enum":["0","1","2","3","4","5","indeterminate"],"description":"Estimated AAEP lameness grade, or \"indeterminate\" if the footage cannot support a grade."},"aaepGradeRationale":{"type":"string","description":"One or two sentences justifying the grade against the AAEP definitions."},"affectedLimbs":{"type":"array","description":"Limbs implicated, most confident first. Empty if no asymmetry is detectable.","items":{"type":"object","additionalProperties":false,"required":["limb","confidence","evidence"],"properties":{"limb":{"type":"string","enum":["left fore","right fore","left hind","right hind","both fore","both hind","multiple limbs","undetermined"]},"confidence":{"type":"string","enum":["high","moderate","low"]},"evidence":{"type":"string","description":"The specific visual evidence, citing frame timestamps and the laterality rule applied (head nod direction, hip hike side, stride length)."}}}},"keyObservations":{"type":"array","items":{"type":"string"},"description":"Objective observations from the frames: head/neck excursion, pelvic symmetry, stride length and overtrack, foot flight arc, landing pattern, hoof-pastern axis, muscle symmetry, posture."},"compensatoryPattern":{"type":"string","description":"Assessment of whether any secondary asymmetry is likely compensatory rather than a second primary lameness. Say \"none apparent\" if not applicable."}}},"differential":{"type":"array","description":"Candidate diagnoses ordered from most to least likely.","items":{"type":"object","additionalProperties":false,"required":["rank","condition","region","likelihood","likelihoodRating","rationale","supportingEvidence","againstEvidence","confirmatoryTests","remedies"],"properties":{"rank":{"type":"integer","description":"1 is the most likely."},"condition":{"type":"string"},"region":{"type":"string","description":"Anatomic region, e.g. \"left front foot\"."},"likelihood":{"type":"string","enum":["most likely","likely","possible","less likely","unlikely but important to exclude"]},"likelihoodRating":{"type":"integer","description":"Rough confidence 0-100 that this is the primary problem. All entries need not sum to 100."},"rationale":{"type":"string","description":"Two or three sentences on why this sits where it does in the ranking."},"supportingEvidence":{"type":"array","items":{"type":"string"},"description":"What in the footage, signalment or history points toward this condition."},"againstEvidence":{"type":"array","items":{"type":"string"},"description":"What argues against it, or what could not be assessed from video."},"confirmatoryTests":{"type":"array","items":{"type":"string"},"description":"The in-person tests or imaging a vet would use to confirm or exclude this."},"remedies":{"type":"object","additionalProperties":false,"required":["immediate","veterinary","farriery","rehabAndConditioning","expectedTimeline","prognosis"],"properties":{"immediate":{"type":"string","description":"What the owner should do today, before the vet arrives."},"veterinary":{"type":"string","description":"Treatments a vet would consider. Framed as options to discuss, not prescriptions."},"farriery":{"type":"string","description":"Trimming and shoeing changes that help this condition."},"rehabAndConditioning":{"type":"array","items":{"type":"string"},"description":"Concrete exercises and workload progression to rebuild the horse toward full stride."},"expectedTimeline":{"type":"string"},"prognosis":{"type":"string"}}}}}},"strideOptimizationPlan":{"type":"object","additionalProperties":false,"required":["goal","phases","farrierPriorities","monitoring"],"description":"A conditioning plan to restore full, free forward stride once the veterinary diagnosis is confirmed and the vet has cleared the horse to work.","properties":{"goal":{"type":"string"},"phases":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["name","duration","focus","sessions","progressionCriteria"],"properties":{"name":{"type":"string"},"duration":{"type":"string","description":"e.g. \"weeks 1-3\"."},"focus":{"type":"string"},"sessions":{"type":"array","items":{"type":"string"},"description":"Specific work to do in this phase."},"progressionCriteria":{"type":"string","description":"What must be true before moving to the next phase."}}}},"farrierPriorities":{"type":"array","items":{"type":"string"}},"monitoring":{"type":"array","items":{"type":"string"},"description":"What to re-check, how often, and the signs that mean stop and call the vet."}}},"vetVisitChecklist":{"type":"array","items":{"type":"string"},"description":"Questions and information to bring to the veterinary appointment so it is efficient."},"limitations":{"type":"array","items":{"type":"string"},"description":"Honest statement of what this video-only assessment cannot determine."}}}};</script>
+    <script>/* Stride — standalone browser build.
+   Everything the server normally does happens here instead: frame extraction via
+   <video> + canvas, motion profiling via pixel diffs, and two calls straight to
+   api.anthropic.com. No Node, no npm, no server. */
+
+const CONFIG = window.__STRIDE__;
+const MODEL = 'claude-opus-5';
+const API = 'https://api.anthropic.com/v1/messages';
+
+const MAX_EDGE = 1400;
+const FRAME_BUDGET = 36;
+const BURSTS = 3;
+const BURST_SPAN_BY_GAIT = { walk: 1.45, trot: 0.85, canter: 0.95, default: 1.15 };
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+};
+const list = (items, cls) => {
+  const ul = el('ul', cls);
+  for (const i of items ?? []) ul.append(el('li', null, i));
+  return ul;
+};
+
+const views = { key: $('#view-key'), upload: $('#view-upload'), working: $('#view-working'), report: $('#view-report'), error: $('#view-error') };
+function show(name) {
+  for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function fail(msg) {
+  $('#error-message').textContent = msg;
+  show('error');
+}
+function log(msg) {
+  $('#log').append(el('li', null, msg));
+  $('#log').lastChild.scrollIntoView({ block: 'nearest' });
+}
+
+/* ------------------------------------------------------------------ api key */
+// sessionStorage, not localStorage: the key is gone when the tab closes.
+let apiKey = sessionStorage.getItem('stride-key') || '';
+
+$('#key-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = $('#key-input').value.trim();
+  if (!v.startsWith('sk-ant-')) {
+    $('#key-error').textContent = 'That does not look like an Anthropic key — they begin with sk-ant-.';
+    return;
+  }
+  apiKey = v;
+  if ($('#key-remember').checked) sessionStorage.setItem('stride-key', v);
+  show('upload');
+});
+
+$('#forget-key').addEventListener('click', () => {
+  sessionStorage.removeItem('stride-key');
+  apiKey = '';
+  $('#key-input').value = '';
+  show('key');
+});
+
+/* -------------------------------------------------------------- view slots */
+const slots = [...document.querySelectorAll('.slot')];
+const chosen = () => slots.filter((s) => s.file);
+
+function refreshSubmit() {
+  const n = chosen().length;
+  $('#submit').disabled = n === 0;
+  const missing = slots.filter((s) => !s.file).map((s) => s.dataset.view);
+  $('#submit-note').textContent =
+    n === 0
+      ? 'Add at least one video to begin.'
+      : n === 3
+        ? 'All three views — the strongest set this can work from.'
+        : `${n} of 3 views. Adding the ${missing.join(' and ')} view would let it resolve more.`;
+}
+
+for (const slot of slots) {
+  const input = slot.querySelector('input[type=file]');
+  const drop = slot.querySelector('.slot-drop');
+  const idle = slot.querySelector('.slot-idle');
+  const preview = slot.querySelector('.slot-preview');
+  const nameEl = slot.querySelector('.slot-name');
+  const clear = slot.querySelector('.slot-clear');
+
+  const set = (file) => {
+    if (!file) return;
+    slot.file = file;
+    if (preview.src) URL.revokeObjectURL(preview.src);
+    preview.src = URL.createObjectURL(file);
+    preview.hidden = false;
+    idle.hidden = true;
+    nameEl.textContent = `${file.name} · ${(file.size / 1048576).toFixed(1)} MB`;
+    slot.classList.add('filled');
+    clear.hidden = false;
+    refreshSubmit();
+  };
+  slot.reset = () => {
+    slot.file = null;
+    input.value = '';
+    if (preview.src) URL.revokeObjectURL(preview.src);
+    preview.removeAttribute('src');
+    preview.hidden = true;
+    idle.hidden = false;
+    nameEl.textContent = '';
+    slot.classList.remove('filled');
+    clear.hidden = true;
+    refreshSubmit();
+  };
+
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); }
+  });
+  for (const t of ['dragenter', 'dragover']) drop.addEventListener(t, (e) => { e.preventDefault(); slot.classList.add('dragging'); });
+  for (const t of ['dragleave', 'drop']) drop.addEventListener(t, (e) => { e.preventDefault(); slot.classList.remove('dragging'); });
+  drop.addEventListener('drop', (e) => set(e.dataTransfer?.files?.[0]));
+  input.addEventListener('change', () => set(input.files[0]));
+  clear.addEventListener('click', slot.reset);
+}
+refreshSubmit();
+
+/* --------------------------------------------------------- frame extraction */
+function loadVideo(file) {
+  return new Promise((resolve, reject) => {
+    const v = document.createElement('video');
+    v.preload = 'auto';
+    v.muted = true;
+    v.playsInline = true;
+    v.src = URL.createObjectURL(file);
+    v.addEventListener('loadedmetadata', () => resolve(v), { once: true });
+    // Decoding is the browser's job here, and browsers differ: Safari and Chrome
+    // handle iPhone HEVC .mov, Firefox generally does not.
+    v.addEventListener('error', () => reject(new Error(
+      `This browser could not decode ${file.name}. It is almost certainly the video codec, not the file — ` +
+      `iPhone .mov clips are HEVC, which Safari and Chrome play but Firefox does not. Try Safari or Chrome, ` +
+      `or re-export the clip as H.264 MP4.`,
+    )), { once: true });
+  });
+}
+
+function seekTo(video, time) {
+  return new Promise((resolve) => {
+    const done = () => resolve();
+    video.addEventListener('seeked', done, { once: true });
+    video.currentTime = Math.min(time, Math.max(0, video.duration - 0.05));
+  });
+}
+
+/** Motion profile: mean absolute pixel difference between successive samples.
+ *  Same idea as the server's ffmpeg profiler, done with a 64x36 canvas. */
+async function motionProfile(video, onProgress) {
+  const w = 64, h = 36;
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+
+  const fps = 8;
+  const total = Math.min(Math.floor(video.duration * fps), 110);
+  if (total < 4) return null;
+
+  const profile = [];
+  let prev = null;
+  for (let i = 0; i < total; i++) {
+    const t = (i / total) * video.duration;
+    await seekTo(video, t);
+    ctx.drawImage(video, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    if (prev) {
+      let sum = 0;
+      for (let p = 0; p < data.length; p += 4) sum += Math.abs(data[p] - prev[p]);
+      profile.push({ time: t, value: sum / (data.length / 4) });
+    }
+    prev = data;
+    if (i % 20 === 0) onProgress?.(Math.round((i / total) * 100));
+  }
+  return profile;
+}
+
+function pickBurstStarts(profile, { usableStart, usableEnd, span, count }) {
+  const latest = usableEnd - span;
+  if (latest <= usableStart) return [usableStart];
+  const evenly = () =>
+    count === 1
+      ? [usableStart + (latest - usableStart) / 2]
+      : Array.from({ length: count }, (_, i) => usableStart + ((latest - usableStart) / (count - 1)) * i);
+  if (!profile?.length) return evenly();
+
+  const stats = (start) => {
+    const inside = profile.filter((s) => s.time >= start && s.time < start + span);
+    if (!inside.length) return null;
+    const mean = inside.reduce((a, s) => a + s.value, 0) / inside.length;
+    const varc = inside.reduce((a, s) => a + (s.value - mean) ** 2, 0) / inside.length;
+    return mean - Math.sqrt(varc);
+  };
+
+  const candidates = [];
+  for (let t = usableStart; t <= latest + 1e-9; t += 0.1) {
+    const score = stats(t);
+    if (score != null) candidates.push({ start: t, score });
+  }
+  if (!candidates.length) return evenly();
+  candidates.sort((a, b) => b.score - a.score);
+
+  const greedy = (gap) => {
+    const picked = [];
+    for (const c of candidates) {
+      if (picked.length >= count) break;
+      if (picked.every((p) => Math.abs(p - c.start) >= gap)) picked.push(c.start);
+    }
+    return picked;
+  };
+  let out = [];
+  for (const gap of [span * 3, span * 2, span * 1.25, span]) {
+    out = greedy(gap);
+    if (out.length >= count) break;
+  }
+  for (const t of evenly()) {
+    if (out.length >= count) break;
+    if (out.every((p) => Math.abs(p - t) >= span * 0.5)) out.push(t);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+async function extractClip(file, view, perView, gait, onProgress) {
+  const video = await loadVideo(file);
+  // videoWidth/videoHeight are display dimensions — the browser has already
+  // applied any rotation, so portrait phone clips come out upright.
+  const meta = { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
+  if (!(meta.duration > 1.5)) throw new Error(`${file.name} is only ${meta.duration.toFixed(1)}s — too short to show a stride.`);
+
+  onProgress(`${view}: profiling movement…`);
+  const profile = await motionProfile(video, (pct) => onProgress(`${view}: profiling movement… ${pct}%`));
+
+  const g = String(gait ?? '').toLowerCase();
+  const span = g.includes('walk') && g.includes('trot') ? BURST_SPAN_BY_GAIT.default
+    : g.includes('walk') ? BURST_SPAN_BY_GAIT.walk
+    : g.includes('trot') ? BURST_SPAN_BY_GAIT.trot
+    : g.includes('canter') ? BURST_SPAN_BY_GAIT.canter
+    : BURST_SPAN_BY_GAIT.default;
+
+  const usableStart = meta.duration * 0.05;
+  const usableEnd = meta.duration * 0.95;
+  const bursts = Math.max(1, Math.min(BURSTS, Math.floor((usableEnd - usableStart) / (span * 1.5)) || 1));
+  const perBurst = Math.max(2, Math.floor(perView / bursts));
+  const innerStep = span / (perBurst - 1);
+  const starts = pickBurstStarts(profile, { usableStart, usableEnd, span, count: bursts });
+
+  const scale = Math.min(1, MAX_EDGE / Math.max(meta.width, meta.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(meta.width * scale);
+  canvas.height = Math.round(meta.height * scale);
+  const ctx = canvas.getContext('2d');
+
+  const frames = [];
+  let n = 0;
+  for (const [b, start] of starts.entries()) {
+    for (let i = 0; i < perBurst; i++) {
+      const t = start + innerStep * i;
+      await seekTo(video, t);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      frames.push({
+        index: frames.length,
+        label: `burst ${b + 1}, frame ${i + 1} — t=${t.toFixed(2)}s`,
+        base64: canvas.toDataURL('image/jpeg', 0.82).split(',')[1],
+      });
+      n++;
+      onProgress(`${view}: capturing frames… ${n}/${bursts * perBurst}`);
+    }
+  }
+
+  URL.revokeObjectURL(video.src);
+  return { view, meta, frames, sampling: { bursts, perBurst, innerStep, span, motionGuided: Boolean(profile) } };
+}
+
+/* -------------------------------------------------------------- claude api */
+async function callClaude(body, onText) {
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({ ...body, stream: true }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    if (res.status === 401) throw new Error('Your API key was rejected. Check it is current and not revoked.');
+    if (res.status === 429) throw new Error('Rate limited by the Anthropic API. Wait a minute and try again.');
+    if (res.status === 400 && detail.includes('credit')) throw new Error('That key has no credit available.');
+    throw new Error(`Anthropic API error ${res.status}. ${detail.slice(0, 200)}`);
+  }
+
+  // Accumulate the streamed content blocks.
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  const blocks = [];
+  let stopReason = null;
+  let usage = {};
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const parts = buf.split('\n\n');
+    buf = parts.pop();
+    for (const part of parts) {
+      const line = part.split('\n').find((l) => l.startsWith('data: '));
+      if (!line) continue;
+      const ev = JSON.parse(line.slice(6));
+      if (ev.type === 'content_block_start') blocks[ev.index] = { ...ev.content_block, text: ev.content_block.text ?? '' };
+      if (ev.type === 'content_block_delta') {
+        const b = (blocks[ev.index] ??= { type: 'text', text: '' });
+        if (ev.delta.type === 'text_delta') { b.text += ev.delta.text; onText?.(ev.delta.text); }
+        if (ev.delta.type === 'input_json_delta') b.partial = (b.partial ?? '') + ev.delta.partial_json;
+      }
+      if (ev.type === 'message_delta') { stopReason = ev.delta?.stop_reason ?? stopReason; usage = { ...usage, ...ev.usage }; }
+    }
+  }
+  return { content: blocks.filter(Boolean), stopReason, usage };
+}
+
+async function analyse(clips, intake) {
+  const knowledge = CONFIG.knowledge;
+
+  const clipBlocks = [];
+  for (const clip of clips) {
+    clipBlocks.push({
+      type: 'text',
+      text:
+        `\n===== ${clip.view.toUpperCase()} VIEW — ${clip.frames.length} frames from ${clip.meta.duration.toFixed(1)}s ` +
+        `at ${clip.meta.width}x${clip.meta.height} =====\n${CONFIG.viewPurpose[clip.view] ?? ''}\n` +
+        `The frames are NOT evenly spread. They were captured as ${clip.sampling.bursts} dense burst(s) of ` +
+        `${clip.sampling.perBurst}, ${clip.sampling.innerStep.toFixed(2)}s apart inside a burst — fast enough to ` +
+        `resolve one stride cycle. Frames within a burst ARE consecutive stride phases and may be compared ` +
+        `directly; frames in different bursts are seconds apart and must not be.`,
+    });
+    for (const f of clip.frames) {
+      clipBlocks.push({ type: 'text', text: `[${clip.view}] frame ${f.index + 1}/${clip.frames.length} — ${f.label}` });
+      clipBlocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: f.base64 } });
+    }
+  }
+
+  const background = Object.entries(intake)
+    .filter(([, v]) => v && String(v).trim())
+    .map(([k, v]) => `- ${k}: ${v}`)
+    .join('\n') || '- (No background supplied.)';
+
+  // ---- pass 1: observation + web research
+  log('Examining gait across the sampled frames…');
+  const messages = [{
+    role: 'user',
+    content: [
+      { type: 'text', text: [
+        'Analyse this horse for signs of lameness or gait abnormality.', '',
+        clips.length === 1 ? 'ONE camera view was supplied.'
+          : `${clips.length} camera views of the SAME horse in the same session were supplied: ${clips.map((c) => c.view).join(', ')}.`,
+        '', 'Owner-supplied background:', background,
+      ].join('\n') },
+      ...clipBlocks,
+      { type: 'text', text: 'Work through the five steps in order. Where more than one view was supplied, compare them explicitly and state whether they agree. Finish with a short ranked shortlist of candidate diagnoses and the reasoning behind that ordering.' },
+    ],
+  }];
+
+  let obs;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    obs = await callClaude({
+      model: MODEL, max_tokens: 32000,
+      system: [{ type: 'text', text: `${CONFIG.observerSystem}\n\n${knowledge}` }],
+      output_config: { effort: 'high' },
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8 }],
+      messages,
+    });
+    if (obs.stopReason !== 'pause_turn') break;
+    messages.push({ role: 'assistant', content: obs.content });
+    log('Continuing research…');
+  }
+
+  const findings = obs.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n\n').trim();
+  const sources = [];
+  for (const b of obs.content) {
+    if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+      for (const r of b.content) if (r.url && !sources.some((s) => s.url === r.url)) sources.push({ url: r.url, title: r.title ?? r.url });
+    }
+  }
+  if (sources.length) log(`Cross-referenced ${sources.length} published sources.`);
+
+  // ---- pass 2: structured report
+  log('Building the ranked differential and treatment plan…');
+  const rep = await callClaude({
+    model: MODEL, max_tokens: 32000,
+    system: [{ type: 'text', text: `${CONFIG.reportSystem}\n\n${knowledge}` }],
+    output_config: { effort: 'high', format: { type: 'json_schema', schema: CONFIG.schema } },
+    messages: [{ role: 'user', content: [
+      `Views supplied: ${clips.map((c) => `${c.view} (${c.meta.duration.toFixed(1)}s, ${c.frames.length} frames)`).join('; ')}.`,
+      '', 'Owner-supplied background:', background, '',
+      '--- OBSERVATION AND RESEARCH PASS ---', findings, '--- END ---', '',
+      'Produce the structured screening report.',
+    ].join('\n') }],
+  });
+
+  const text = rep.content.find((b) => b.type === 'text')?.text;
+  if (!text) throw new Error('The model returned an empty report.');
+  return {
+    report: JSON.parse(text),
+    observation: findings,
+    sources,
+    meta: {
+      model: MODEL,
+      views: clips.map((c) => c.view),
+      frameCount: clips.reduce((n, c) => n + c.frames.length, 0),
+      videoDuration: clips.reduce((d, c) => d + c.meta.duration, 0),
+      webResearch: true,
+      generatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/* ------------------------------------------------------------------ submit */
+$('#form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const picked = chosen();
+  if (!picked.length) return;
+
+  $('#log').replaceChildren();
+  show('working');
+
+  const intake = {};
+  for (const [k, v] of new FormData(e.target).entries()) if (typeof v === 'string' && v.trim()) intake[k] = v.trim();
+
+  try {
+    const perView = Math.min(18, Math.max(6, Math.floor(FRAME_BUDGET / picked.length)));
+    const clips = [];
+    let lastLine = null;
+    for (const slot of picked) {
+      const clip = await extractClip(slot.file, slot.dataset.view, perView, intake.gait, (msg) => {
+        if (lastLine) lastLine.textContent = msg;
+        else { log(msg); lastLine = $('#log').lastChild; }
+      });
+      lastLine = null;
+      log(`${clip.view}: ${clip.frames.length} frames in ${clip.sampling.bursts} burst(s) from ${clip.meta.duration.toFixed(1)}s${clip.sampling.motionGuided ? ', placed on the most active passages' : ''}.`);
+      clips.push(clip);
+    }
+    const result = await analyse(clips, intake);
+    renderReport(result);
+  } catch (err) {
+    fail(err.message ?? String(err));
+  }
+});
+
+$('#restart').addEventListener('click', () => { slots.forEach((s) => s.reset()); show('upload'); });
+$('#retry').addEventListener('click', () => show('upload'));
+$('#print').addEventListener('click', () => window.print());
+
+/* ------------------------------------------------------------------ report */
+// ------------------------------------------------------------------ report
+
+function renderReport({ report, observation, sources, meta }) {
+  const root = $('#report');
+  root.replaceChildren();
+
+  // Emergency banner first — it is the only thing that matters if it fires.
+  if (report.emergency?.isEmergency) {
+    const box = el('div', 'notice notice-danger');
+    box.append(el('strong', null, 'Call your veterinarian today.'));
+    box.append(
+      el('p', null, 'This footage or history shows at least one sign that should not wait:'),
+      list(report.emergency.reasons),
+    );
+    root.append(box);
+  }
+
+  // Header + run metadata
+  const head = el('div', 'report-head');
+  head.append(el('h2', null, 'Gait screening report'));
+  root.append(head);
+
+  const strip = el('ul', 'meta-strip');
+  for (const item of [
+    meta.views?.length ? `${meta.views.join(' + ')} view${meta.views.length > 1 ? 's' : ''}` : 'single view',
+    `${meta.frameCount} frames analysed`,
+    `${meta.videoDuration.toFixed(1)}s of footage`,
+    meta.webResearch ? 'Web research: on' : 'Web research: off',
+    new Date(meta.generatedAt).toLocaleString(),
+  ]) {
+    strip.append(el('li', null, item));
+  }
+  root.append(strip);
+
+  if (report.viewsAnalyzed?.length) root.append(renderViews(report.viewsAnalyzed));
+  root.append(renderVideoQuality(report.videoQuality));
+  root.append(renderGait(report.gaitAssessment));
+  root.append(renderDifferential(report.differential));
+  root.append(renderPlan(report.strideOptimizationPlan));
+
+  if (report.vetVisitChecklist?.length) {
+    const card = el('div', 'card');
+    card.append(el('h2', null, 'Take this to your vet'));
+    card.append(list(report.vetVisitChecklist, 'obs-list'));
+    root.append(card);
+  }
+
+  if (report.limitations?.length) {
+    const card = el('div', 'card');
+    card.append(el('h2', null, 'What this cannot tell you'));
+    card.append(list(report.limitations, 'obs-list'));
+    root.append(card);
+  }
+
+  if (sources?.length) {
+    const card = el('div', 'card');
+    card.append(el('h2', null, 'Sources consulted'));
+    const ul = el('ul', 'sources');
+    for (const src of sources) {
+      const li = el('li');
+      const a = el('a', null, src.title);
+      a.href = src.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      li.append(a);
+      ul.append(li);
+    }
+    card.append(ul);
+    root.append(card);
+  }
+
+  if (observation) {
+    const card = el('div', 'card raw');
+    const details = el('details');
+    details.append(el('summary', null, 'Full frame-by-frame working notes'));
+    details.append(el('pre', null, observation));
+    card.append(details);
+    root.append(card);
+  }
+
+  show('report');
+}
+
+function renderViews(views) {
+  const card = el('div', 'card');
+  card.append(el('h2', null, 'What each view contributed'));
+  const ul = el('ul', 'limb-list');
+  for (const v of views) {
+    const li = el('li');
+    const missing = v.view === 'not supplied' || !v.usable;
+    li.append(el('span', 'limb-name', v.view));
+    li.append(el('span', `conf ${missing ? 'low' : 'high'}`, missing ? 'not usable' : 'used'));
+    li.append(el('p', 'limb-evidence', v.contributed));
+    ul.append(li);
+  }
+  card.append(ul);
+  return card;
+}
+
+function renderVideoQuality(q) {
+  const card = el('div', 'card');
+  card.append(el('h2', null, 'Footage quality'));
+
+  const rating = el('p');
+  rating.append(el('strong', null, `${q.rating.charAt(0).toUpperCase()}${q.rating.slice(1)}`));
+  rating.append(
+    document.createTextNode(
+      q.rating === 'good'
+        ? ' — this clip supports a reasonable assessment.'
+        : ' — read the findings below with that in mind.',
+    ),
+  );
+  card.append(rating);
+
+  if (q.issues?.length) {
+    card.append(el('h5', null, 'Limitations of this clip'), list(q.issues, 'obs-list'));
+  }
+  if (q.suggestions?.length) {
+    card.append(el('h5', null, 'For a better clip next time'), list(q.suggestions, 'obs-list'));
+  }
+  return card;
+}
+
+function renderGait(g) {
+  const card = el('div', 'card');
+  card.append(el('h2', null, 'What the gait shows'));
+
+  const row = el('div', 'grade-row');
+  row.append(
+    el(
+      'span',
+      'grade-badge',
+      g.aaepGrade === 'indeterminate' ? 'Grade: unclear' : `AAEP Grade ${g.aaepGrade}`,
+    ),
+  );
+  if (g.gaitsObserved?.length) {
+    row.append(el('span', 'grade-scale', `Observed at: ${g.gaitsObserved.join(', ')}`));
+  }
+  card.append(row);
+  card.append(el('p', null, g.aaepGradeRationale));
+
+  if (g.affectedLimbs?.length) {
+    card.append(el('h5', null, 'Limbs implicated'));
+    const ul = el('ul', 'limb-list');
+    for (const limb of g.affectedLimbs) {
+      const li = el('li');
+      const name = el('span', 'limb-name', limb.limb);
+      const conf = el('span', `conf ${limb.confidence}`, `${limb.confidence} confidence`);
+      li.append(name, conf, el('p', 'limb-evidence', limb.evidence));
+      ul.append(li);
+    }
+    card.append(ul);
+  }
+
+  if (g.keyObservations?.length) {
+    card.append(el('h5', null, 'Key observations'), list(g.keyObservations, 'obs-list'));
+  }
+  if (g.compensatoryPattern && !/^none/i.test(g.compensatoryPattern)) {
+    card.append(el('h5', null, 'Compensation'), el('p', null, g.compensatoryPattern));
+  }
+  return card;
+}
+
+function renderDifferential(differential) {
+  const section = el('div');
+  const intro = el('div', 'report-head');
+  intro.append(el('h2', null, 'Possible diagnoses'));
+  intro.append(
+    el(
+      'p',
+      'card-sub',
+      'Ordered from most likely and most common down to least likely. Percentages are the model\'s rough confidence, not a clinical probability.',
+    ),
+  );
+  section.append(intro);
+
+  for (const dx of differential ?? []) {
+    const card = el('div', 'dx');
+    // Drives the severity stripe and rank-chip emphasis in CSS, so likelihood
+    // reads as form and not only as a percentage.
+    card.dataset.likelihood = dx.likelihood;
+
+    const head = el('div', 'dx-head');
+    head.append(el('div', 'dx-rank', String(dx.rank)));
+
+    const title = el('div', 'dx-title');
+    title.append(el('h4', null, dx.condition));
+    title.append(el('p', 'dx-region', `${dx.region} · ${dx.likelihood}`));
+    head.append(title);
+
+    const like = el('div', 'dx-like');
+    like.append(el('div', 'dx-like-label', 'Confidence'));
+    like.append(el('div', 'dx-like-val', `${dx.likelihoodRating}%`));
+    head.append(like);
+    card.append(head);
+
+    const bar = el('div', 'bar');
+    const fill = el('span');
+    fill.style.width = `${Math.max(0, Math.min(100, dx.likelihoodRating))}%`;
+    bar.append(fill);
+    card.append(bar);
+
+    card.append(el('p', 'dx-rationale', dx.rationale));
+
+    const evidence = el('div', 'evidence');
+    const forCol = el('div');
+    forCol.append(el('h5', null, 'Points toward it'), list(dx.supportingEvidence));
+    const againstCol = el('div');
+    againstCol.append(el('h5', null, 'Points away / unassessable'), list(dx.againstEvidence));
+    evidence.append(forCol, againstCol);
+    card.append(evidence);
+
+    const more = el('details', 'dx-more');
+    more.append(el('summary', null, 'Confirmatory tests and treatment plan'));
+
+    const body = el('div', 'remedy');
+    body.append(el('h5', null, 'How a vet would confirm this'), list(dx.confirmatoryTests));
+
+    const r = dx.remedies;
+    body.append(el('h5', null, 'What to do right now'), el('p', null, r.immediate));
+    body.append(el('h5', null, 'Veterinary options to discuss'), el('p', null, r.veterinary));
+    body.append(el('h5', null, 'Trimming and shoeing'), el('p', null, r.farriery));
+    body.append(el('h5', null, 'Rehab and conditioning'), list(r.rehabAndConditioning));
+
+    const dl = el('dl');
+    for (const [term, value] of [
+      ['Timeline', r.expectedTimeline],
+      ['Prognosis', r.prognosis],
+    ]) {
+      const pair = el('div', 'kv');
+      pair.append(el('dt', null, `${term}:`), el('dd', null, value));
+      dl.append(pair);
+    }
+    body.append(dl);
+
+    more.append(body);
+    card.append(more);
+    section.append(card);
+  }
+  return section;
+}
+
+function renderPlan(plan) {
+  const card = el('div', 'card');
+  card.append(el('h2', null, 'Getting back to a full stride'));
+  card.append(el('p', 'card-sub', 'Start this only once your vet has diagnosed the problem and cleared the horse to work.'));
+  card.append(el('p', null, plan.goal));
+
+  for (const phase of plan.phases ?? []) {
+    const block = el('div', 'phase');
+    const head = el('div', 'phase-head');
+    head.append(el('h4', null, phase.name), el('span', 'phase-dur', phase.duration));
+    block.append(head);
+    block.append(el('p', 'phase-focus', phase.focus));
+    block.append(list(phase.sessions));
+    block.append(el('p', 'gate', `Move on when: ${phase.progressionCriteria}`));
+    card.append(block);
+  }
+
+  if (plan.farrierPriorities?.length) {
+    card.append(el('h5', null, 'Farrier priorities'), list(plan.farrierPriorities, 'obs-list'));
+  }
+  if (plan.monitoring?.length) {
+    card.append(el('h5', null, 'What to watch, and when to stop'), list(plan.monitoring, 'obs-list'));
+  }
+  return card;
+}
+
+/* --------------------------------------------------------------- start-up */
+if (apiKey) { $('#key-input').value = apiKey; show('upload'); } else show('key');
+</script>
+  </body>
+</html>

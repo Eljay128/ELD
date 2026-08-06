@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stride — Equine Gait Screening (standalone)</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐎</text></svg>"
+    />
+    <style>/*__CSS__*/</style>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="wrap">
+        <h1>
+          <svg width="30" height="18" viewBox="0 0 30 18" fill="none" aria-hidden="true">
+            <path d="M1 13 Q5 3 9 13 Q13 3 17 13 Q21 3 25 13" stroke="currentColor" stroke-width="1.6"
+                  stroke-linecap="round" fill="none" />
+            <circle cx="9" cy="13" r="2.1" fill="currentColor" />
+            <circle cx="17" cy="13" r="2.1" fill="currentColor" />
+            <circle cx="1" cy="13" r="1.3" fill="currentColor" opacity="0.4" />
+            <circle cx="25" cy="13" r="1.3" fill="currentColor" opacity="0.4" />
+          </svg>
+          Stride
+        </h1>
+        <p class="tagline">
+          Up to three views of your horse in motion. Get a ranked list of what might be going on, and
+          what it takes to get them striding out again. Runs entirely in this browser tab.
+        </p>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div class="notice notice-warn" role="note">
+        <strong>This is a screening aid, not a diagnosis.</strong> It reads still frames from your video
+        and cannot palpate, feel a digital pulse, use hoof testers, flex a joint or run a nerve block —
+        the things that actually confirm a lameness. Use it to know what to look at and what to ask.
+        Anything painful, sudden or worsening needs a veterinarian.
+      </div>
+
+      <main>
+        <!-- ------------------------------------------------------------- KEY -->
+        <section id="view-key" hidden>
+          <div class="card">
+            <h2>Your Anthropic API key</h2>
+            <p class="card-sub">
+              This page talks to the Claude API directly from your browser, so it needs your key. The key
+              is used only for requests to <code>api.anthropic.com</code>, is never sent anywhere else, and
+              there is no server involved at any point.
+            </p>
+            <form id="key-form">
+              <label class="full">
+                API key
+                <input type="password" id="key-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+              </label>
+              <label class="checkline">
+                <input type="checkbox" id="key-remember" checked />
+                Keep it for this tab only (cleared when the tab closes)
+              </label>
+              <p class="error-text" id="key-error"></p>
+              <div class="submit-row">
+                <button type="submit" class="primary">Continue</button>
+                <p class="submit-note">Get a key at console.anthropic.com → Settings → API keys.</p>
+              </div>
+            </form>
+            <details class="tips">
+              <summary>What this costs, and what to watch</summary>
+              <ul>
+                <li>A three-view run uses roughly 60–70k tokens, most of it images and web research.</li>
+                <li>It takes about 8–12 minutes. Leave the tab open and awake — the work happens here.</li>
+                <li>Because this file holds your key in the page, treat it as a personal tool: don't host it
+                  on a shared server or hand the file to someone else with the key saved.</li>
+              </ul>
+            </details>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------------- UPLOAD -->
+        <section id="view-upload" hidden>
+          <form id="form" novalidate>
+            <div class="card">
+              <h2>1. The videos</h2>
+              <p class="card-sub">
+                Up to three views of the same horse, same session. Each answers a different question, and
+                they are not interchangeable. One is enough to start; three is far better.
+              </p>
+
+              <div class="slots">
+                <div class="slot" data-view="front">
+                  <input type="file" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Front</span> toward the camera</div>
+                  <p class="slot-why">Where the <strong>head nod</strong> is read — the key forelimb sign.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the front view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
+                </div>
+
+                <div class="slot" data-view="rear">
+                  <input type="file" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Rear</span> away from the camera</div>
+                  <p class="slot-why">Where the <strong>hip hike</strong> is read — the key hindlimb sign.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the rear view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
+                </div>
+
+                <div class="slot" data-view="side">
+                  <input type="file" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Side</span> lateral pass</div>
+                  <p class="slot-why">Stride length, foot flight, landing — and <strong>withers movement</strong>, which separates a real forelimb lameness from a hind-limb fake.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the side view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
+                </div>
+              </div>
+
+              <details class="tips">
+                <summary>How to shoot a set that's actually diagnostic</summary>
+                <ul>
+                  <li><strong>Trot, in hand, on a loose lead.</strong> A tight lead masks the head nod, which is the single most useful sign in the whole set.</li>
+                  <li><strong>Hard, flat, level ground.</strong> A driveway or aisle beats an arena for spotting foot pain.</li>
+                  <li><strong>Camera still on a fence post or tripod.</strong> Don't pan, don't zoom, don't walk with the horse — let it move through a fixed background so vertical movement can be measured against something stationary.</li>
+                  <li><strong>Front and rear:</strong> trot 25–30 m straight toward the camera, then straight away. Keep the whole horse in frame.</li>
+                  <li><strong>Side:</strong> square to the track, poll, withers and croup all visible and unobstructed, 6–8 consecutive strides in one take.</li>
+                  <li><strong>8–15 seconds each</strong>, good light, no long shadow stripes across the ground.</li>
+                </ul>
+              </details>
+            </div>
+
+            <div class="card">
+              <h2>2. About the horse</h2>
+              <p class="card-sub">
+                All optional — but every field you fill in sharpens the ranking. Age, discipline and how the
+                problem started are the ones that move the needle most.
+              </p>
+              <div class="grid">
+                <label>Name <input name="horseName" placeholder="Blue" /></label>
+                <label>Age <input name="age" placeholder="12 years" /></label>
+                <label>Breed / type <input name="breed" placeholder="Quarter Horse" /></label>
+                <label>Sex
+                  <select name="sex"><option value="">—</option><option>Mare</option><option>Gelding</option><option>Stallion</option></select>
+                </label>
+                <label>Discipline / job <input name="discipline" placeholder="Reining, ridden 5x a week" /></label>
+                <label>Gait in the video
+                  <select name="gait"><option value="">—</option><option>Walk</option><option>Trot</option><option>Canter</option><option>Walk and trot</option></select>
+                </label>
+                <label>Surface
+                  <select name="surface"><option value="">—</option><option>Hard (concrete, tarmac, packed dirt)</option><option>Arena / sand</option><option>Grass</option><option>Deep or soft footing</option></select>
+                </label>
+                <label>Shoeing
+                  <select name="shoeing"><option value="">—</option><option>Barefoot</option><option>Shod in front only</option><option>Shod all round</option><option>Corrective / therapeutic shoes</option></select>
+                </label>
+                <label>Weeks since the farrier <input name="farrierWeeks" placeholder="7" inputmode="numeric" /></label>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>3. The problem</h2>
+              <div class="grid">
+                <label>First noticed <input name="onset" placeholder="About 3 weeks ago" /></label>
+                <label>How it started
+                  <select name="onsetType"><option value="">—</option><option>Sudden — overnight or after a specific event</option><option>Gradual — crept up over weeks or months</option><option>Not sure</option></select>
+                </label>
+                <label>Since then it's been
+                  <select name="trajectory"><option value="">—</option><option>Getting worse</option><option>Unchanged</option><option>Getting better</option><option>Comes and goes</option></select>
+                </label>
+                <label>Footing makes it
+                  <select name="surfaceEffect"><option value="">—</option><option>Worse on hard ground</option><option>Worse on soft or deep ground</option><option>No clear difference</option></select>
+                </label>
+                <label>With work it
+                  <select name="warmupEffect"><option value="">—</option><option>Warms out of it — better after 10 minutes</option><option>Gets worse as work goes on</option><option>Stays about the same</option></select>
+                </label>
+              </div>
+              <label class="full">Previous injuries, diagnoses or surgeries
+                <textarea name="history" rows="2" placeholder="Suspensory strain in the left hind, 2022"></textarea>
+              </label>
+              <label class="full">Current medications or supplements
+                <textarea name="medications" rows="2" placeholder="Bute 1g as needed; joint supplement"></textarea>
+              </label>
+              <label class="full">Anything else you've noticed
+                <textarea name="notes" rows="3" placeholder="Reluctant to pick up the right lead. Stumbles going downhill."></textarea>
+              </label>
+            </div>
+
+            <div class="submit-row">
+              <button type="submit" id="submit" class="primary" disabled>Analyse gait</button>
+              <p class="submit-note" id="submit-note">Add at least one video to begin.</p>
+              <button type="button" class="link-btn" id="forget-key">Change API key</button>
+            </div>
+          </form>
+        </section>
+
+        <!-- --------------------------------------------------------- WORKING -->
+        <section id="view-working" hidden>
+          <div class="card working">
+            <div class="spinner" aria-hidden="true"></div>
+            <h2>Analysing</h2>
+            <p class="working-note">
+              This usually takes eight to twelve minutes. Frames are captured here in your browser, then the
+              gait pass and the research pass both run at full depth — leave this tab open and awake.
+            </p>
+            <ol class="log" id="log" aria-live="polite"></ol>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------------------- REPORT -->
+        <section id="view-report" hidden>
+          <div id="report"></div>
+          <div class="submit-row">
+            <button type="button" class="primary" id="restart">Analyse another case</button>
+            <button type="button" class="secondary" id="print">Save / print report</button>
+          </div>
+        </section>
+
+        <!-- ----------------------------------------------------------- ERROR -->
+        <section id="view-error" hidden>
+          <div class="card">
+            <h2>Something went wrong</h2>
+            <p id="error-message" class="error-text"></p>
+            <button type="button" class="primary" id="retry">Back</button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <p>
+          Stride is an educational screening tool. It does not diagnose, prescribe, or replace a veterinary
+          examination. If your horse is non-weight-bearing, badly lame, or you suspect laminitis or a
+          fracture, call your vet now.
+        </p>
+      </footer>
+    </div>
+
+    <script>window.__STRIDE__ = /*__CONFIG__*/;</script>
+    <script>/*__APP__*/</script>
+  </body>
+</html>

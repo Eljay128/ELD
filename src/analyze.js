@@ -48,7 +48,7 @@ function describeHorse(intake) {
   return filled.length ? filled.join('\n') : '- (No background information supplied by the owner.)';
 }
 
-const VIEW_PURPOSE = {
+export const VIEW_PURPOSE = {
   front: 'FRONT view (horse trotting TOWARD the camera) — this is where the HEAD NOD is read, and where medio-lateral limb deviation (winging, paddling, plaiting) is visible.',
   rear: 'REAR view (horse moving AWAY from the camera) — this is where the HIP HIKE / sacral rise is read, and where hindlimb tracking and base width are visible.',
   side: 'SIDE view (lateral pass) — this is where stride length, overtrack, cranial vs caudal phase, foot flight arc, landing pattern, hoof-pastern axis and WITHERS movement are visible. Withers movement is the sign that separates a true forelimb lameness from a hindlimb-induced false nod.',
@@ -74,7 +74,7 @@ function clipContent(clips) {
   return blocks;
 }
 
-const OBSERVER_SYSTEM = `
+export const OBSERVER_SYSTEM = `
 You are assisting a veterinary lameness workup by analysing still frames sampled from video of a
 horse in motion. The frames arrive in dense bursts — see the sampling note in the user message,
 which tells you exactly which frames are consecutive stride phases and which are seconds apart.
@@ -133,7 +133,7 @@ Reason from prevalence: common conditions are common. A middle-aged sport horse 
 choppy hind gait is far more likely to have distal hock arthritis than a rare neoplasm.
 `.trim();
 
-const REPORT_SYSTEM = `
+export const REPORT_SYSTEM = `
 You are producing an owner-facing lameness screening report from a completed observation and
 research pass. Return only the structured report in the required schema.
 
