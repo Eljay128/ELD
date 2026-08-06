@@ -30,6 +30,23 @@
 
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* ---- theme surface: everything a restyle needs to touch -------------- */
+  --display: var(--sans);        /* headings and titles */
+  --label: var(--mono);          /* small uppercase eyebrows and chips */
+  --body: var(--sans);           /* running text */
+
+  --display-tracking: -0.015em;
+  --display-weight: 650;
+  --label-tracking: 0.1em;
+  --heading-case: none;
+  --label-transform: uppercase;
+
+  --btn-radius: 4px;
+  --btn-weight: 600;
+  --btn-tracking: 0;
+  --btn-transform: none;
+  --btn-font: var(--sans);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -105,9 +122,11 @@ body {
 .masthead h1 {
   display: flex; align-items: center; gap: 11px;
   margin: 0 0 7px;
+  font-family: var(--display);
   font-size: 1.35rem;
-  font-weight: 650;
-  letter-spacing: -0.015em;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--heading-case);
 }
 .masthead h1 svg { flex: none; color: var(--accent); }
 .tagline { margin: 0; color: var(--ink-2); max-width: 62ch; font-size: 0.94rem; }
@@ -127,7 +146,7 @@ body {
 .notice-danger strong {
   display: block; margin-bottom: 5px;
   color: var(--critical);
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: 0.82rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
 }
@@ -144,7 +163,7 @@ body {
 }
 .card > h2 {
   margin: 0 0 3px;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: 0.74rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.11em;
   color: var(--ink-3);
@@ -155,7 +174,7 @@ body {
 /* Sub-labels inside cards share the mono eyebrow treatment. */
 .card h5, .evidence h5, .remedy h5 {
   margin: 18px 0 7px;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: 0.7rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.09em;
   color: var(--ink-3);
@@ -176,7 +195,7 @@ body {
 .dropzone.has-file { cursor: default; padding: 16px; border-style: solid; background: var(--ground); }
 .dz-icon { color: var(--accent); margin-bottom: 10px; line-height: 0; }
 .dz-title { margin: 0 0 4px; font-weight: 600; font-size: 0.96rem; }
-.dz-sub { margin: 0; color: var(--ink-3); font-family: var(--mono); font-size: 0.76rem; }
+.dz-sub { margin: 0; color: var(--ink-3); font-family: var(--label); font-size: 0.76rem; }
 .dz-chosen video { width: 100%; max-height: 320px; border-radius: 4px; background: #000; display: block; }
 .dz-filename {
   margin: 9px 0 4px; font-family: var(--mono); font-size: 0.78rem;
@@ -198,7 +217,7 @@ body {
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 13px; }
 label {
   display: block;
-  font-family: var(--mono);
+  font-family: var(--label);
   font-size: 0.7rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.07em;
   color: var(--ink-3);
@@ -223,8 +242,14 @@ textarea { resize: vertical; }
 /* --------------------------------------------------------------- buttons */
 .submit-row { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; margin: 22px 0 36px; }
 .primary, .secondary {
-  font-family: var(--sans); font-weight: 600; font-size: 0.93rem;
-  padding: 10px 20px; border-radius: 4px; cursor: pointer;
+  font-family: var(--btn-font);
+  font-weight: var(--btn-weight);
+  letter-spacing: var(--btn-tracking);
+  text-transform: var(--btn-transform);
+  font-size: 0.93rem;
+  padding: 10px 20px;
+  border-radius: var(--btn-radius);
+  cursor: pointer;
   border: 1px solid transparent;
 }
 .primary { background: var(--accent); color: var(--accent-ink); }
@@ -266,7 +291,11 @@ textarea { resize: vertical; }
 /* ---------------------------------------------------------------- report */
 .report-head h2 {
   margin: 0 0 5px;
-  font-size: 1.32rem; font-weight: 650; letter-spacing: -0.015em;
+  font-family: var(--display);
+  font-size: 1.32rem;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--heading-case);
   color: var(--ink);
 }
 
@@ -318,7 +347,7 @@ textarea { resize: vertical; }
 .sec[open] > summary::after { transform: rotate(-135deg); margin-top: -2px; }
 
 .sec-title {
-  font-family: var(--mono); font-size: 0.7rem; font-weight: 600;
+  font-family: var(--label); font-size: 0.7rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-3);
 }
 .sec-summary { font-size: 0.95rem; line-height: 1.5; color: var(--ink); }
@@ -339,13 +368,13 @@ textarea { resize: vertical; }
   font-family: var(--mono); font-size: 0.86rem; font-weight: 700;
   letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
 }
-.grade-scale { color: var(--ink-3); font-family: var(--mono); font-size: 0.76rem; }
+.grade-scale { color: var(--ink-3); font-family: var(--label); font-size: 0.76rem; }
 
 .limb-list { list-style: none; padding: 0; margin: 8px 0 0; }
 .limb-list li { padding: 11px 0; border-top: 1px solid var(--line); }
 .limb-name { font-weight: 600; }
 .conf {
-  font-family: var(--mono); font-size: 0.66rem; font-weight: 600;
+  font-family: var(--label); font-size: 0.66rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.07em;
   border: 1px solid var(--line-strong); border-radius: 3px;
   padding: 2px 7px; margin-left: 8px; color: var(--ink-2); vertical-align: 1px;
@@ -391,15 +420,19 @@ textarea { resize: vertical; }
   background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
 }
 .dx-title { flex: 1 1 220px; min-width: 0; }
-.dx-title h4 { margin: 0; font-size: 1.06rem; font-weight: 650; letter-spacing: -0.01em; text-wrap: balance; }
+.dx-title h4 {
+  margin: 0; font-family: var(--display); font-size: 1.06rem;
+  font-weight: var(--display-weight); letter-spacing: var(--display-tracking);
+  text-wrap: balance;
+}
 .dx-region {
   margin: 3px 0 0; color: var(--ink-3);
-  font-family: var(--mono); font-size: 0.72rem;
+  font-family: var(--label); font-size: 0.72rem;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .dx-like { text-align: right; flex: none; }
 .dx-like-label {
-  font-family: var(--mono); font-size: 0.65rem;
+  font-family: var(--label); font-size: 0.65rem;
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
 }
 .dx-like-val {
@@ -422,7 +455,7 @@ textarea { resize: vertical; }
 .dx-more { margin-top: 15px; border-top: 1px solid var(--line); padding-top: 13px; }
 .dx-more > summary {
   cursor: pointer; color: var(--accent); font-weight: 600;
-  font-family: var(--mono); font-size: 0.75rem;
+  font-family: var(--label); font-size: 0.75rem;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .remedy p { margin: 0 0 4px; font-size: 0.92rem; }
@@ -432,7 +465,7 @@ textarea { resize: vertical; }
 .kv { display: flex; gap: 8px; font-size: 0.88rem; margin-bottom: 5px; }
 .kv dt {
   color: var(--ink-3); flex: none; min-width: 76px;
-  font-family: var(--mono); font-size: 0.72rem;
+  font-family: var(--label); font-size: 0.72rem;
   text-transform: uppercase; letter-spacing: 0.06em; padding-top: 2px;
 }
 .kv dd { margin: 0; }
@@ -443,7 +476,7 @@ textarea { resize: vertical; }
 .phase-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .phase-head h4 { margin: 0; font-size: 1rem; font-weight: 650; }
 .phase-dur {
-  color: var(--accent); font-family: var(--mono); font-size: 0.72rem;
+  color: var(--accent); font-family: var(--label); font-size: 0.72rem;
   font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
 }
 .phase-focus { margin: 4px 0 9px; color: var(--ink-2); font-size: 0.9rem; }
@@ -462,7 +495,7 @@ textarea { resize: vertical; }
 .sources a { color: var(--accent); text-decoration: none; word-break: break-word; }
 .sources a:hover { text-decoration: underline; text-underline-offset: 2px; }
 
-.raw summary { cursor: pointer; color: var(--ink-3); font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.raw summary { cursor: pointer; color: var(--ink-3); font-family: var(--label); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .raw pre {
   white-space: pre-wrap; word-break: break-word;
   background: var(--ground); border: 1px solid var(--line); border-radius: 4px;
@@ -500,7 +533,7 @@ textarea { resize: vertical; }
 .slot.filled { border-color: var(--accent); }
 .slot.dragging { border-color: var(--accent); background: var(--accent-wash); }
 .slot-head {
-  font-family: var(--mono); font-size: 0.7rem;
+  font-family: var(--label); font-size: 0.7rem;
   text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3);
 }
 .slot-tag {
@@ -520,7 +553,7 @@ textarea { resize: vertical; }
 }
 .slot-drop:hover, .slot-drop:focus-visible { border-color: var(--accent); outline: none; }
 .slot.filled .slot-drop { border-style: solid; cursor: default; }
-.slot-idle { font-family: var(--mono); font-size: 0.76rem; color: var(--accent); }
+.slot-idle { font-family: var(--label); font-size: 0.76rem; color: var(--accent); }
 .slot-preview { width: 100%; border-radius: 3px; background: #000; display: block; }
 .slot-name {
   font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3);
@@ -535,7 +568,7 @@ textarea { resize: vertical; }
 .slot-status.ok { color: var(--good); font-family: var(--mono); font-size: 0.7rem; }
 .slot-status.bad { color: var(--critical); }
 .probe-detail { margin-top: 6px; }
-.probe-detail summary { cursor: pointer; font-family: var(--mono); font-size: 0.68rem; color: var(--ink-2); }
+.probe-detail summary { cursor: pointer; font-family: var(--label); font-size: 0.68rem; color: var(--ink-2); }
 .probe-detail pre {
   margin: 6px 0 0; padding: 8px; overflow-x: auto;
   background: var(--panel); border: 1px solid var(--line);
