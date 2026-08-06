@@ -134,42 +134,73 @@ function loadVideo(file) {
     // Attributes as well as properties: iOS honours the attribute form.
     v.setAttribute('muted', '');
     v.setAttribute('playsinline', '');
-    v.src = URL.createObjectURL(file);
+
+    // iOS will not load or decode media for an element that is outside the
+    // document, and display:none stops decoding too — so it goes in the page,
+    // hidden by size and opacity instead.
+    v.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.append(v);
+
+    let settled = false;
+    const finish = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(poll);
+      clearTimeout(timer);
+      fn(arg);
+    };
 
     // Decoding is the browser's job here, and browsers differ: Safari and Chrome
     // handle iPhone HEVC .mov, Firefox generally does not.
-    v.addEventListener('error', () => reject(new Error(
-      `This browser could not decode ${file.name}. It is almost certainly the video codec, not the file — ` +
-      `iPhone .mov clips are HEVC, which Safari and Chrome play but Firefox does not. Try Safari or Chrome, ` +
-      `or re-export the clip as H.264 MP4.`,
-    )), { once: true });
+    v.addEventListener('error', () => {
+      v.remove();
+      finish(reject, new Error(
+        `This browser could not decode ${file.name}. It is almost certainly the video codec, not the file — ` +
+        `iPhone .mov clips are HEVC, which Safari and Chrome play but Firefox does not. Try Safari or Chrome, ` +
+        `or re-export the clip as H.264 MP4.`,
+      ));
+    }, { once: true });
 
     // loadedmetadata can fire before the frame size is known. A zero-sized video
     // does not throw — it silently produces empty canvas exports — so wait for
     // real dimensions rather than for the event alone.
     const ready = () => {
-      if (!(v.videoWidth > 0 && v.videoHeight > 0)) return;
-      for (const e of ['loadedmetadata', 'loadeddata', 'canplay']) v.removeEventListener(e, ready);
-      resolve(v);
+      if (v.videoWidth > 0 && v.videoHeight > 0) finish(resolve, v);
     };
-    for (const e of ['loadedmetadata', 'loadeddata', 'canplay']) v.addEventListener(e, ready);
+    for (const e of ['loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough']) v.addEventListener(e, ready);
+    // Some browsers reach real dimensions without firing a further event.
+    const poll = setInterval(ready, 100);
 
-    setTimeout(() => reject(new Error(
-      `${file.name} never reported its dimensions, so no frames could be read from it. ` +
-      `Try a different clip, or re-export it as H.264 MP4.`,
-    )), 30000);
+    v.src = URL.createObjectURL(file);
+    v.load();
+
+    // iOS defers loading until playback is attempted, so metadata may otherwise
+    // never arrive at all. This runs inside the submit gesture, so it is
+    // allowed; if it is refused, the listeners above still cover every browser
+    // that loads on its own.
+    Promise.resolve(v.play()).then(() => v.pause()).catch(() => {});
+
+    const timer = setTimeout(() => {
+      v.remove();
+      finish(reject, new Error(
+        `${file.name} never reported a picture size, so no frames could be read from it. This usually means the ` +
+        `browser would not decode it — iPhone .MOV clips are HEVC, which Safari and Chrome handle and Firefox ` +
+        `does not. Try Safari or Chrome, re-export as H.264 MP4, or run the server version, which uses ffmpeg ` +
+        `and reads any codec.`,
+      ));
+    }, 45000);
   });
 }
 
-/** iOS will not decode a frame for a video that has never played. */
+/** Belt and braces after load: leave the clip parked at the start, decoded. */
 async function primeDecoder(video) {
   try {
     await video.play();
     video.pause();
     video.currentTime = 0;
   } catch {
-    // Autoplay refused. Seeking usually still works; the per-frame check below
-    // is what actually guarantees we noticed if it did not.
+    // Refused. Seeking usually still works, and the per-frame check below is
+    // what actually guarantees we noticed if it did not.
   }
 }
 
@@ -285,6 +316,17 @@ function grabFrame(video, canvas, ctx) {
 
 async function extractClip(file, view, perView, gait, onProgress) {
   const video = await loadVideo(file);
+  try {
+    return await readFrames(video, file, view, perView, gait, onProgress);
+  } finally {
+    // The element lives in the document so iOS will decode it; take it back out
+    // whatever happens, so a failed clip cannot leave one behind.
+    URL.revokeObjectURL(video.src);
+    video.remove();
+  }
+}
+
+async function readFrames(video, file, view, perView, gait, onProgress) {
   await primeDecoder(video);
   // videoWidth/videoHeight are display dimensions — the browser has already
   // applied any rotation, so portrait phone clips come out upright.
@@ -352,7 +394,6 @@ async function extractClip(file, view, perView, gait, onProgress) {
     }
   }
 
-  URL.revokeObjectURL(video.src);
   return { view, meta, frames, sampling: { bursts, perBurst, innerStep, span, motionGuided: Boolean(profile) } };
 }
 
