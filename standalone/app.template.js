@@ -88,15 +88,24 @@ const slots = [...document.querySelectorAll('.slot')];
 const chosen = () => slots.filter((s) => s.file);
 
 function refreshSubmit() {
-  const n = chosen().length;
-  $('#submit').disabled = n === 0;
+  const picked = chosen();
+  const n = picked.length;
+  const checking = picked.filter((s) => s.readable === undefined).length;
+  const broken = picked.filter((s) => s.readable === false);
   const missing = slots.filter((s) => !s.file).map((s) => s.dataset.view);
+
+  $('#submit').disabled = n === 0 || checking > 0 || broken.length > 0;
+
   $('#submit-note').textContent =
     n === 0
       ? 'Add at least one video to begin.'
-      : n === 3
-        ? 'All three views — the strongest set this can work from.'
-        : `${n} of 3 views. Adding the ${missing.join(' and ')} view would let it resolve more.`;
+      : broken.length
+        ? `Remove the ${broken.map((s) => s.dataset.view).join(' and ')} clip, or open it in a browser that can read it.`
+        : checking
+          ? 'Checking the video is readable…'
+          : n === 3
+            ? 'All three views — the strongest set this can work from.'
+            : `${n} of 3 views. Adding the ${missing.join(' and ')} view would let it resolve more.`;
 }
 
 for (const slot of slots) {
@@ -107,9 +116,12 @@ for (const slot of slots) {
   const nameEl = slot.querySelector('.slot-name');
   const clear = slot.querySelector('.slot-clear');
 
-  const set = (file) => {
+  const status = slot.querySelector('.slot-status');
+
+  const set = async (file) => {
     if (!file) return;
     slot.file = file;
+    slot.readable = undefined;
     if (preview.src) URL.revokeObjectURL(preview.src);
     preview.src = URL.createObjectURL(file);
     preview.hidden = false;
@@ -117,16 +129,37 @@ for (const slot of slots) {
     nameEl.textContent = `${file.name} · ${(file.size / 1048576).toFixed(1)} MB`;
     slot.classList.add('filled');
     clear.hidden = false;
+    status.className = 'slot-status';
+    status.textContent = 'Checking this browser can read it…';
+    refreshSubmit();
+
+    const result = await probeClip(file);
+    if (slot.file !== file) return; // Replaced while we were checking.
+    slot.readable = result.ok;
+    if (result.ok) {
+      status.className = 'slot-status ok';
+      status.textContent = `Readable — ${result.duration.toFixed(1)}s, ${result.width}×${result.height}`;
+    } else {
+      status.className = 'slot-status bad';
+      status.textContent =
+        `Can't be read here — ${result.short}. iPhone video is HEVC, and if the browser won't decode it, ` +
+        `nothing in this page can. Re-export as H.264 MP4, or use the server version, which reads any codec.`;
+      slot.probeDetail = result.detail;
+    }
     refreshSubmit();
   };
+
   slot.reset = () => {
     slot.file = null;
+    slot.readable = undefined;
     input.value = '';
     if (preview.src) URL.revokeObjectURL(preview.src);
     preview.removeAttribute('src');
     preview.hidden = true;
     idle.hidden = false;
     nameEl.textContent = '';
+    status.className = 'slot-status';
+    status.textContent = '';
     slot.classList.remove('filled');
     clear.hidden = true;
     refreshSubmit();
@@ -145,7 +178,7 @@ for (const slot of slots) {
 refreshSubmit();
 
 /* --------------------------------------------------------- frame extraction */
-function loadVideo(file) {
+function loadVideo(file, timeoutMs = 45000) {
   return new Promise((resolve, reject) => {
     const v = document.createElement('video');
     v.preload = 'auto';
@@ -173,9 +206,10 @@ function loadVideo(file) {
 
     // Decoding is the browser's job here, and browsers differ: Safari and Chrome
     // handle iPhone HEVC .mov, Firefox generally does not.
-    const rejectWith = (message) => {
+    const rejectWith = (message, short) => {
       const err = new Error(message);
       err.detail = decodeReport(v, file);
+      err.short = short;
       v.remove();
       finish(reject, err);
     };
@@ -184,6 +218,7 @@ function loadVideo(file) {
       `This browser could not decode ${file.name}. It is almost certainly the video codec, not the file — ` +
       `iPhone .mov clips are HEVC, which Safari and Chrome play but Firefox does not. Try Safari or Chrome, ` +
       `or re-export the clip as H.264 MP4.`,
+      'this browser refused to decode it',
     ), { once: true });
 
     // loadedmetadata can fire before the frame size is known. A zero-sized video
@@ -209,7 +244,8 @@ function loadVideo(file) {
       `${file.name} never reported a picture size, so no frames could be read from it. Open the details below — ` +
       `they say which layer gave up, which is what decides the fix. The server version sidesteps this entirely: ` +
       `it uses ffmpeg and reads any codec.`,
-    ), 45000);
+      'it never reported a picture size',
+    ), timeoutMs);
   });
 }
 
@@ -333,6 +369,37 @@ const MIN_FRAME_CHARS = 512;
 function grabFrame(video, canvas, ctx) {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg', 0.82).split(',')[1] ?? '';
+}
+
+/**
+ * Can this browser actually read this clip? Answered at selection time, in a
+ * couple of seconds, because the alternative is letting someone fill in the
+ * whole form and wait — iPhone video is HEVC, and a browser that cannot decode
+ * HEVC cannot be worked around from inside the page.
+ */
+async function probeClip(file) {
+  let video;
+  try {
+    video = await loadVideo(file, 12000);
+  } catch (err) {
+    return { ok: false, short: err.short, detail: err.detail };
+  }
+  try {
+    await primeDecoder(video);
+    const canvas = document.createElement('canvas');
+    canvas.width = 160;
+    canvas.height = 90;
+    const ctx = canvas.getContext('2d');
+    await seekTo(video, Math.min(0.5, video.duration / 2));
+    // Opening the container is not the same as decoding a picture from it.
+    if (grabFrame(video, canvas, ctx).length < 128) {
+      return { ok: false, short: 'it opened, but no picture could be read from it', detail: decodeReport(video, file) };
+    }
+    return { ok: true, duration: video.duration, width: video.videoWidth, height: video.videoHeight };
+  } finally {
+    URL.revokeObjectURL(video.src);
+    video.remove();
+  }
 }
 
 async function extractClip(file, view, perView, gait, onProgress) {

@@ -478,3 +478,10 @@ textarea { resize: vertical; }
   word-break: break-all; line-height: 1.4;
 }
 .slot-clear { align-self: flex-start; font-size: 0.78rem; }
+
+/* Result of the standalone's readability probe. Empty until a clip is chosen,
+   so it must not reserve space when it has nothing to say. */
+.slot-status { margin: 0; font-size: 0.76rem; line-height: 1.45; color: var(--ink-3); }
+.slot-status:empty { display: none; }
+.slot-status.ok { color: var(--good); font-family: var(--mono); font-size: 0.7rem; }
+.slot-status.bad { color: var(--critical); }
