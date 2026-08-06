@@ -59,7 +59,8 @@ All optional, set in `.env`:
 | `ANTHROPIC_API_KEY` | — | **Required.** |
 | `PORT` | `3000` | HTTP port. |
 | `MAX_UPLOAD_MB` | `250` | Upload size cap. |
-| `FRAME_COUNT` | `14` | Frames sampled per video (clamped 6–24). More frames cover the stride cycle better and cost more. |
+| `FRAME_COUNT` | `18` | Frames sampled per video (clamped 6–24). More frames resolve the stride cycle better and cost more. |
+| `BURST_COUNT` | `3` | How many dense bursts those frames are split across (clamped 1–5). See Sampling below. |
 | `WEB_RESEARCH` | `true` | Set `false` to skip the live research pass — faster and cheaper, slightly less current. |
 
 ---
@@ -67,7 +68,7 @@ All optional, set in `.env`:
 ## How it works
 
 ```
-video ──▶ ffmpeg samples N frames evenly across the middle 90% of the clip
+video ──▶ ffmpeg samples N frames as dense bursts (see Sampling below)
              │
              ▼
      Pass 1 · observation + research      (claude-opus-5, vision + web_search)
@@ -87,9 +88,29 @@ video ──▶ ffmpeg samples N frames evenly across the middle 90% of the clip
 more likely to come back malformed or truncated. Splitting them keeps the JSON reliable and lets
 the observation pass reason freely and search as much as it needs.
 
-**Why frames rather than the video file.** The Messages API takes images, not video. Frames sampled
-evenly across the clip capture the stride cycle at multiple points, which is what the laterality
-rules need — you have to see which limb is grounded at each extreme of head or pelvic movement.
+**Why frames rather than the video file.** The Messages API takes images, not video.
+
+### Sampling — why bursts, not an even spread
+
+This is the least obvious design decision in the project, and it was forced by a live run.
+
+The laterality rules need you to see *which limb is grounded at each extreme of head or pelvic
+movement*. That only works if consecutive frames are consecutive stride phases. Spreading 14 frames
+evenly across an 11-second clip puts them **0.79s apart** — and a trot stride cycle is roughly
+**0.6–0.85s**. The sampling interval and the signal period were nearly identical, so frames landed
+at effectively arbitrary points in the stride and the head-nod rule became unusable.
+
+That is exactly what happened on the first real run: the model correctly refused to call laterality
+and named the aliasing as the reason. Mock data could never have surfaced it, because mock data has
+no stride cycle.
+
+Frames are now captured as **3 bursts of 6**, spaced ~0.16s apart within a burst — fast enough to
+track the head through a full stride — while the bursts themselves are spread seconds apart to
+still sample different moments of the clip. The prompt tells the model which frames are
+burst-adjacent and which are not, so it knows what it may compare directly.
+
+Tune with `FRAME_COUNT` and `BURST_COUNT`. More bursts sample more of the clip; more frames per
+burst resolve the stride more finely.
 
 The first and last 5% of the clip is skipped: in a hand-held video that is usually the handler
 still setting up or the horse already halted.

@@ -61,25 +61,54 @@ export async function probe(videoPath) {
   };
 }
 
+/** A trot stride cycle is roughly 0.6-0.85s. Each burst is timed to span a little
+ *  over one full cycle so the head can be tracked from one extreme to the other. */
+const BURST_SPAN_SECONDS = 0.8;
+
 /**
- * Sample `count` frames spread evenly across the clip.
+ * Sample frames in dense bursts rather than as a thin even spread.
+ *
+ * This matters more than it looks. Spreading N frames evenly across a 10s clip
+ * puts them ~0.7-0.8s apart, which is the same order as a trot stride cycle — so
+ * consecutive frames land at effectively arbitrary stride phases and the head-nod
+ * and hip-hike rules cannot be applied at all. (A live run confirmed this: the
+ * model correctly refused to call laterality and named the aliasing as the reason.)
+ *
+ * Instead we take a few short bursts of closely-spaced frames. Within a burst,
+ * frames are consecutive enough to track the head through a stride; across
+ * bursts, we still sample different moments of the clip.
  *
  * Frames are taken from the middle 90% of the video: the first and last moments
  * of a hand-held clip are usually the handler still setting up or the horse
- * already halted, which wastes tokens on frames with no gait in them.
+ * already halted.
  */
-export async function extractFrames(videoPath, count = 14) {
+export async function extractFrames(videoPath, count = 18, burstCount = 3) {
   const meta = await probe(videoPath);
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'stride-frames-'));
 
-  const start = meta.duration * 0.05;
-  const span = meta.duration * 0.9;
-  const step = count > 1 ? span / (count - 1) : 0;
+  const usableStart = meta.duration * 0.05;
+  const usableSpan = meta.duration * 0.9;
+
+  // Fall back to fewer bursts on short clips so bursts cannot overlap.
+  const bursts = Math.max(1, Math.min(burstCount, Math.floor(usableSpan / (BURST_SPAN_SECONDS * 1.5)) || 1));
+  const perBurst = Math.max(2, Math.floor(count / bursts));
+  const innerStep = BURST_SPAN_SECONDS / (perBurst - 1);
+
+  // Space burst start points evenly through the usable span.
+  const burstStride = bursts > 1 ? (usableSpan - BURST_SPAN_SECONDS) / (bursts - 1) : 0;
+
+  const plan = [];
+  for (let b = 0; b < bursts; b++) {
+    const burstStart = usableStart + burstStride * b;
+    for (let i = 0; i < perBurst; i++) {
+      plan.push({ burst: b, indexInBurst: i, timestamp: burstStart + innerStep * i });
+    }
+  }
 
   try {
     const frames = [];
-    for (let i = 0; i < count; i++) {
-      const timestamp = start + step * i;
+    for (const [i, shot] of plan.entries()) {
+      const timestamp = shot.timestamp;
       const outPath = path.join(dir, `${String(i).padStart(2, '0')}-${randomUUID()}.jpg`);
 
       await execFileAsync(ffmpegPath, [
@@ -99,8 +128,10 @@ export async function extractFrames(videoPath, count = 14) {
 
       frames.push({
         index: frames.length,
+        burst: shot.burst,
+        indexInBurst: shot.indexInBurst,
         timestamp,
-        label: `${timestamp.toFixed(2)}s`,
+        label: `burst ${shot.burst + 1}, frame ${shot.indexInBurst + 1} — t=${timestamp.toFixed(2)}s`,
         base64: buffer.toString('base64'),
       });
     }
@@ -111,7 +142,7 @@ export async function extractFrames(videoPath, count = 14) {
       );
     }
 
-    return { meta, frames };
+    return { meta, frames, sampling: { bursts, perBurst, innerStep } };
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }

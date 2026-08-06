@@ -4,3 +4,7 @@ uploads/
 tmp/
 *.log
 .DS_Store
+
+# local run artifacts
+real-report*.json
+*.log

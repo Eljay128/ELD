@@ -12,7 +12,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(here, 'uploads');
 const PORT = Number(process.env.PORT ?? 3000);
 const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 250);
-const FRAME_COUNT = Math.min(Math.max(Number(process.env.FRAME_COUNT ?? 14), 6), 24);
+const FRAME_COUNT = Math.min(Math.max(Number(process.env.FRAME_COUNT ?? 18), 6), 24);
+const BURST_COUNT = Math.min(Math.max(Number(process.env.BURST_COUNT ?? 3), 1), 5);
 const WEB_RESEARCH = process.env.WEB_RESEARCH !== 'false';
 
 if (!process.env.ANTHROPIC_API_KEY) {
@@ -94,17 +95,18 @@ async function runAnalysis(jobId, videoPath, intake) {
 
   try {
     pushEvent(jobId, { type: 'progress', message: 'Reading the video and sampling frames…' });
-    const { meta, frames } = await extractFrames(videoPath, FRAME_COUNT);
+    const { meta, frames, sampling } = await extractFrames(videoPath, FRAME_COUNT, BURST_COUNT);
 
     pushEvent(jobId, {
       type: 'progress',
-      message: `Sampled ${frames.length} frames from ${meta.duration.toFixed(1)}s of footage.`,
+      message: `Sampled ${frames.length} frames in ${sampling.bursts} burst(s) from ${meta.duration.toFixed(1)}s of footage.`,
     });
 
     const result = await analyzeVideo({
       frames,
       meta,
       intake,
+      sampling,
       webResearch: WEB_RESEARCH,
       onProgress: (message) => pushEvent(jobId, { type: 'progress', message }),
     });
@@ -179,5 +181,5 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`\n  Stride running at http://localhost:${PORT}`);
-  console.log(`  Frames per video: ${FRAME_COUNT}   Web research: ${WEB_RESEARCH ? 'on' : 'off'}\n`);
+  console.log(`  Frames per video: ${FRAME_COUNT} in ${BURST_COUNT} bursts   Web research: ${WEB_RESEARCH ? 'on' : 'off'}\n`);
 });

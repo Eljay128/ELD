@@ -50,7 +50,7 @@ function describeHorse(intake) {
 
 function frameContent(frames) {
   return frames.flatMap((frame) => [
-    { type: 'text', text: `Frame ${frame.index + 1} of ${frames.length} — ${frame.label} into the clip:` },
+    { type: 'text', text: `Frame ${frame.index + 1} of ${frames.length} — ${frame.label}` },
     {
       type: 'image',
       source: { type: 'base64', media_type: 'image/jpeg', data: frame.base64 },
@@ -59,7 +59,9 @@ function frameContent(frames) {
 }
 
 const OBSERVER_SYSTEM = `
-You are assisting a veterinary lameness workup by analysing still frames sampled evenly from a video of a horse in motion.
+You are assisting a veterinary lameness workup by analysing still frames sampled from a video of a
+horse in motion. The frames arrive in dense bursts — see the sampling note in the user message,
+which tells you exactly which frames are consecutive stride phases and which are seconds apart.
 
 Your job in this pass is OBSERVATION and RESEARCH, not a final report.
 
@@ -122,8 +124,23 @@ Rules:
 - Be honest in limitations. This is a screening aid built on still frames, not a diagnosis.
 `.trim();
 
+/** Explains the burst structure so the model knows which frames it may compare directly. */
+function describeSampling(sampling, frames) {
+  if (!sampling) return '';
+  const { bursts, perBurst, innerStep } = sampling;
+  return [
+    `The ${frames.length} frames are NOT evenly spread across the clip. They were captured as`,
+    `${bursts} dense burst${bursts === 1 ? '' : 's'} of ${perBurst} frames, with only ${innerStep.toFixed(2)}s`,
+    `between consecutive frames inside a burst — deliberately fast enough to resolve a single stride`,
+    `cycle (a trot cycle is roughly 0.6-0.85s). Frames within the same burst ARE consecutive stride`,
+    `phases and can be compared directly to track head height against which limb is grounded.`,
+    `Frames in different bursts are seconds apart and must NOT be treated as consecutive.`,
+    `Each frame is labelled with its burst number and timestamp.`,
+  ].join(' ');
+}
+
 /** Run the observation pass, resuming automatically if a server-tool turn pauses. */
-async function observationPass({ frames, meta, intake, webResearch, onProgress }) {
+async function observationPass({ frames, meta, intake, sampling, webResearch, onProgress }) {
   const tools = webResearch
     ? [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8 }]
     : [];
@@ -137,12 +154,12 @@ async function observationPass({ frames, meta, intake, webResearch, onProgress }
           text: [
             'Analyse this horse for signs of lameness or gait abnormality.',
             '',
-            `The clip is ${meta.duration.toFixed(1)} seconds long at ${meta.width}x${meta.height}. ` +
-              `${frames.length} frames were sampled evenly across it and appear below in chronological order.`,
+            `The clip is ${meta.duration.toFixed(1)} seconds long at ${meta.width}x${meta.height}.`,
+            describeSampling(sampling, frames),
             '',
             'Owner-supplied background:',
             describeHorse(intake),
-          ].join('\n'),
+          ].filter(Boolean).join('\n'),
         },
         ...frameContent(frames),
         {
@@ -247,8 +264,8 @@ async function reportPass({ findings, intake, meta, frameCount, onProgress }) {
   }
 }
 
-export async function analyzeVideo({ frames, meta, intake, webResearch = true, onProgress }) {
-  const observation = await observationPass({ frames, meta, intake, webResearch, onProgress });
+export async function analyzeVideo({ frames, meta, intake, sampling, webResearch = true, onProgress }) {
+  const observation = await observationPass({ frames, meta, intake, sampling, webResearch, onProgress });
 
   if (observation.sources.length) {
     onProgress?.(`Cross-referenced ${observation.sources.length} published sources.`);
