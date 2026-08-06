@@ -855,9 +855,13 @@ function loadVideo(file) {
     const v = document.createElement('video');
     v.preload = 'auto';
     v.muted = true;
+    v.defaultMuted = true;
     v.playsInline = true;
+    // Attributes as well as properties: iOS honours the attribute form.
+    v.setAttribute('muted', '');
+    v.setAttribute('playsinline', '');
     v.src = URL.createObjectURL(file);
-    v.addEventListener('loadedmetadata', () => resolve(v), { once: true });
+
     // Decoding is the browser's job here, and browsers differ: Safari and Chrome
     // handle iPhone HEVC .mov, Firefox generally does not.
     v.addEventListener('error', () => reject(new Error(
@@ -865,13 +869,57 @@ function loadVideo(file) {
       `iPhone .mov clips are HEVC, which Safari and Chrome play but Firefox does not. Try Safari or Chrome, ` +
       `or re-export the clip as H.264 MP4.`,
     )), { once: true });
+
+    // loadedmetadata can fire before the frame size is known. A zero-sized video
+    // does not throw — it silently produces empty canvas exports — so wait for
+    // real dimensions rather than for the event alone.
+    const ready = () => {
+      if (!(v.videoWidth > 0 && v.videoHeight > 0)) return;
+      for (const e of ['loadedmetadata', 'loadeddata', 'canplay']) v.removeEventListener(e, ready);
+      resolve(v);
+    };
+    for (const e of ['loadedmetadata', 'loadeddata', 'canplay']) v.addEventListener(e, ready);
+
+    setTimeout(() => reject(new Error(
+      `${file.name} never reported its dimensions, so no frames could be read from it. ` +
+      `Try a different clip, or re-export it as H.264 MP4.`,
+    )), 30000);
   });
+}
+
+/** iOS will not decode a frame for a video that has never played. */
+async function primeDecoder(video) {
+  try {
+    await video.play();
+    video.pause();
+    video.currentTime = 0;
+  } catch {
+    // Autoplay refused. Seeking usually still works; the per-frame check below
+    // is what actually guarantees we noticed if it did not.
+  }
 }
 
 function seekTo(video, time) {
   return new Promise((resolve) => {
-    const done = () => resolve();
-    video.addEventListener('seeked', done, { once: true });
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const onSeeked = () => {
+      // 'seeked' means the position moved, not that a frame is on screen.
+      // requestVideoFrameCallback fires once one is actually presentable, which
+      // is what drawImage needs — without it we can copy the previous frame.
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        video.requestVideoFrameCallback(finish);
+        setTimeout(finish, 400);
+      } else {
+        finish();
+      }
+    };
+    video.addEventListener('seeked', onSeeked, { once: true });
+    setTimeout(finish, 3000); // Never hang the whole run on one bad seek.
     video.currentTime = Math.min(time, Math.max(0, video.duration - 0.05));
   });
 }
@@ -951,12 +999,26 @@ function pickBurstStarts(profile, { usableStart, usableEnd, span, count }) {
   return out.sort((a, b) => a - b);
 }
 
+/** A real JPEG of a video frame is tens of KB. Anything this small is a
+ *  failed export, not a dark frame — toDataURL returns the string "data:,"
+ *  when it has nothing to encode, which yields an empty payload. */
+const MIN_FRAME_CHARS = 512;
+
+function grabFrame(video, canvas, ctx) {
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.82).split(',')[1] ?? '';
+}
+
 async function extractClip(file, view, perView, gait, onProgress) {
   const video = await loadVideo(file);
+  await primeDecoder(video);
   // videoWidth/videoHeight are display dimensions — the browser has already
   // applied any rotation, so portrait phone clips come out upright.
   const meta = { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
   if (!(meta.duration > 1.5)) throw new Error(`${file.name} is only ${meta.duration.toFixed(1)}s — too short to show a stride.`);
+  if (!(meta.width > 0 && meta.height > 0)) {
+    throw new Error(`${file.name} reported no picture size, so every frame would come out blank. Try re-exporting it as H.264 MP4.`);
+  }
 
   onProgress(`${view}: profiling movement…`);
   const profile = await motionProfile(video, (pct) => onProgress(`${view}: profiling movement… ${pct}%`));
@@ -987,11 +1049,29 @@ async function extractClip(file, view, perView, gait, onProgress) {
     for (let i = 0; i < perBurst; i++) {
       const t = start + innerStep * i;
       await seekTo(video, t);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      let base64 = grabFrame(video, canvas, ctx);
+
+      // One retry: on a slow decoder the first export can land before the frame
+      // does. Nudging the time forces a fresh seek rather than a repeat draw.
+      if (base64.length < MIN_FRAME_CHARS) {
+        await new Promise((r) => setTimeout(r, 150));
+        await seekTo(video, Math.min(t + 0.03, meta.duration - 0.05));
+        base64 = grabFrame(video, canvas, ctx);
+      }
+
+      // Never let an empty image reach the API — it fails the request as a
+      // whole, after every other frame has already been captured.
+      if (base64.length < MIN_FRAME_CHARS) {
+        throw new Error(
+          `This browser returned a blank frame for ${file.name} at ${t.toFixed(1)}s, so the clip cannot be read here. ` +
+          `Safari and Chrome handle iPhone HEVC video; Firefox does not. Try one of those, or re-export as H.264 MP4.`,
+        );
+      }
+
       frames.push({
         index: frames.length,
         label: `burst ${b + 1}, frame ${i + 1} — t=${t.toFixed(2)}s`,
-        base64: canvas.toDataURL('image/jpeg', 0.82).split(',')[1],
+        base64,
       });
       n++;
       onProgress(`${view}: capturing frames… ${n}/${bursts * perBurst}`);
