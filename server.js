@@ -95,11 +95,15 @@ async function runAnalysis(jobId, videoPath, intake) {
 
   try {
     pushEvent(jobId, { type: 'progress', message: 'Reading the video and sampling frames…' });
-    const { meta, frames, sampling } = await extractFrames(videoPath, FRAME_COUNT, BURST_COUNT);
+    const { meta, frames, sampling } = await extractFrames(videoPath, FRAME_COUNT, BURST_COUNT, {
+      gait: intake.gait,
+    });
 
     pushEvent(jobId, {
       type: 'progress',
-      message: `Sampled ${frames.length} frames in ${sampling.bursts} burst(s) from ${meta.duration.toFixed(1)}s of footage.`,
+      message:
+        `Sampled ${frames.length} frames in ${sampling.bursts} burst(s) from ${meta.duration.toFixed(1)}s of footage` +
+        `${sampling.motionGuided ? ', placed on the most active passages' : ''}.`,
     });
 
     const result = await analyzeVideo({

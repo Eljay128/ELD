@@ -150,9 +150,15 @@ if (process.env.ANTHROPIC_API_KEY) {
 const videoArg = process.argv[2];
 if (videoArg) {
   await check(`Frame extraction from ${videoArg}`, async () => {
-    const { meta, frames } = await extractFrames(videoArg, 14);
+    // Same defaults as the server, so what this reports is what production does.
+    const { meta, frames, sampling } = await extractFrames(videoArg, 18, 3);
     const kb = Math.round(frames.reduce((sum, f) => sum + f.base64.length, 0) / 1024);
-    return `${frames.length} frames, ${meta.duration.toFixed(1)}s, ${meta.width}x${meta.height}, ~${kb}KB payload`;
+    const orientation = meta.rotated ? ' (rotated)' : '';
+    return (
+      `${frames.length} frames in ${sampling.bursts} burst(s) of ${sampling.perBurst}, ` +
+      `${sampling.span}s span, ${sampling.motionGuided ? 'motion-guided' : 'evenly spaced'}; ` +
+      `${meta.duration.toFixed(1)}s, ${meta.width}x${meta.height}${orientation}, ~${kb}KB`
+    );
   });
 } else {
   console.log(`  ${WARN} Frame extraction not tested — pass a video path to check real footage:`);

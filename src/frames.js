@@ -6,6 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import ffmpegPath from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
+import { motionProfile, pickBurstStarts } from './motion.js';
 
 const execFileAsync = promisify(execFile);
 const ffprobePath = ffprobeStatic.path;
@@ -21,10 +22,14 @@ export class VideoError extends Error {}
 export async function probe(videoPath) {
   let stdout;
   try {
+    // Full stream JSON so rotation metadata is available: phone video is stored
+    // landscape with a rotate flag, and reporting the stored dimensions gets
+    // portrait clips backwards.
     ({ stdout } = await execFileAsync(ffprobePath, [
       '-v', 'error',
       '-select_streams', 'v:0',
-      '-show_entries', 'stream=width,height,avg_frame_rate:format=duration',
+      '-show_streams',
+      '-show_entries', 'format=duration',
       '-of', 'json',
       videoPath,
     ]));
@@ -53,17 +58,48 @@ export async function probe(videoPath) {
   const [num, den] = String(stream.avg_frame_rate ?? '0/1').split('/').map(Number);
   const fps = den ? num / den : 0;
 
+  // Rotation lives either in side_data_list (modern ffprobe) or the legacy
+  // tags.rotate. ffmpeg auto-rotates on decode, so the frames we extract are
+  // already upright — only the reported dimensions need swapping to match.
+  const sideRotation = stream.side_data_list?.find((d) => d.rotation != null)?.rotation;
+  const tagRotation = stream.tags?.rotate;
+  const rotation = Math.abs(Number(sideRotation ?? tagRotation ?? 0)) % 180;
+  const rotated = rotation === 90;
+
   return {
     duration,
-    width: stream.width,
-    height: stream.height,
+    width: rotated ? stream.height : stream.width,
+    height: rotated ? stream.width : stream.height,
+    rotated,
     fps: Number.isFinite(fps) && fps > 0 ? fps : null,
   };
 }
 
-/** A trot stride cycle is roughly 0.6-0.85s. Each burst is timed to span a little
- *  over one full cycle so the head can be tracked from one extreme to the other. */
-const BURST_SPAN_SECONDS = 0.8;
+/**
+ * How long each burst should span, by gait. A burst has to cover slightly more
+ * than one full stride cycle for the head to be trackable from one extreme to
+ * the other.
+ *
+ * A trot cycle is roughly 0.6-0.85s, but a WALK cycle is 1.1-1.3s — so the
+ * original flat 0.8s span could never contain a full walk stride. A live run on
+ * a walk-only clip caught exactly that ("none of which covers a complete walk
+ * stride"), which is why this is keyed to gait rather than fixed.
+ */
+const BURST_SPAN_BY_GAIT = {
+  walk: 1.45,
+  trot: 0.85,
+  canter: 0.95,
+  default: 1.15, // unknown gait: long enough for a walk, still usable for a trot
+};
+
+function burstSpanFor(gaitHint) {
+  const g = String(gaitHint ?? '').toLowerCase();
+  if (g.includes('walk') && g.includes('trot')) return BURST_SPAN_BY_GAIT.default;
+  if (g.includes('walk')) return BURST_SPAN_BY_GAIT.walk;
+  if (g.includes('trot')) return BURST_SPAN_BY_GAIT.trot;
+  if (g.includes('canter')) return BURST_SPAN_BY_GAIT.canter;
+  return BURST_SPAN_BY_GAIT.default;
+}
 
 /**
  * Sample frames in dense bursts rather than as a thin even spread.
@@ -82,28 +118,31 @@ const BURST_SPAN_SECONDS = 0.8;
  * of a hand-held clip are usually the handler still setting up or the horse
  * already halted.
  */
-export async function extractFrames(videoPath, count = 18, burstCount = 3) {
+export async function extractFrames(videoPath, count = 18, burstCount = 3, { gait } = {}) {
   const meta = await probe(videoPath);
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'stride-frames-'));
 
+  const span = burstSpanFor(gait);
   const usableStart = meta.duration * 0.05;
-  const usableSpan = meta.duration * 0.9;
+  const usableEnd = meta.duration * 0.95;
+  const usableSpan = usableEnd - usableStart;
 
   // Fall back to fewer bursts on short clips so bursts cannot overlap.
-  const bursts = Math.max(1, Math.min(burstCount, Math.floor(usableSpan / (BURST_SPAN_SECONDS * 1.5)) || 1));
+  const bursts = Math.max(1, Math.min(burstCount, Math.floor(usableSpan / (span * 1.5)) || 1));
   const perBurst = Math.max(2, Math.floor(count / bursts));
-  const innerStep = BURST_SPAN_SECONDS / (perBurst - 1);
+  const innerStep = span / (perBurst - 1);
 
-  // Space burst start points evenly through the usable span.
-  const burstStride = bursts > 1 ? (usableSpan - BURST_SPAN_SECONDS) / (bursts - 1) : 0;
+  // Place bursts where the clip is actually moving, rather than at fixed
+  // intervals that can land on a turn, a halt or the walk-down.
+  const profile = await motionProfile(videoPath);
+  const starts = pickBurstStarts(profile, { usableStart, usableEnd, span, count: bursts });
 
   const plan = [];
-  for (let b = 0; b < bursts; b++) {
-    const burstStart = usableStart + burstStride * b;
+  starts.forEach((burstStart, b) => {
     for (let i = 0; i < perBurst; i++) {
       plan.push({ burst: b, indexInBurst: i, timestamp: burstStart + innerStep * i });
     }
-  }
+  });
 
   try {
     const frames = [];
@@ -142,7 +181,11 @@ export async function extractFrames(videoPath, count = 18, burstCount = 3) {
       );
     }
 
-    return { meta, frames, sampling: { bursts, perBurst, innerStep } };
+    return {
+      meta,
+      frames,
+      sampling: { bursts, perBurst, innerStep, span, motionGuided: Boolean(profile) },
+    };
   } finally {
     await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   }

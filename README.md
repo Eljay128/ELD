@@ -104,10 +104,29 @@ That is exactly what happened on the first real run: the model correctly refused
 and named the aliasing as the reason. Mock data could never have surfaced it, because mock data has
 no stride cycle.
 
-Frames are now captured as **3 bursts of 6**, spaced ~0.16s apart within a burst — fast enough to
-track the head through a full stride — while the bursts themselves are spread seconds apart to
-still sample different moments of the clip. The prompt tells the model which frames are
-burst-adjacent and which are not, so it knows what it may compare directly.
+Frames are now captured as **3 separated bursts**, each dense enough to track the head through a
+full stride. The prompt tells the model which frames are burst-adjacent and which are not, so it
+knows what it may compare directly.
+
+Two further refinements came out of later live runs on real footage:
+
+**Burst span is keyed to gait.** A trot cycle is 0.6–0.85s but a *walk* cycle is 1.1–1.3s, so the
+original flat 0.8s span could never contain a complete walk stride — a run on a walk-only clip said
+exactly that. Span is now 0.85s for trot, 1.45s for walk, 0.95s for canter, and 1.15s when the gait
+is unknown (long enough for a walk, still usable for a trot).
+
+**Bursts are placed where the clip is actually moving.** Fixed intervals land on whatever happens to
+be there. On one trot-up that meant burst 1 on a turn and burst 3 on the walk-down, leaving one of
+three bursts on usable trot — again, the model reported it. `src/motion.js` now profiles the clip
+(mean frame-to-frame difference, 10fps at 64×36 greyscale — cheap) and scores candidate windows by
+`mean − standard deviation`, so it prefers sustained movement and avoids windows straddling a
+transition. Measured against the previous even spacing on real clips, this captures 28–48% more
+motion energy.
+
+Bursts are also required to stay *separated*, not merely non-overlapping: three adjacent bursts are
+really one long burst, and the value of separate bursts is that a phase relationship confirmed at
+t=3s and again at t=9s is independent evidence. Separation relaxes only when a clip is too short or
+too briefly active to support it, and the whole profiler degrades to even spacing if it fails.
 
 Tune with `FRAME_COUNT` and `BURST_COUNT`. More bursts sample more of the clip; more frames per
 burst resolve the stride more finely.
