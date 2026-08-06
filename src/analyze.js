@@ -157,9 +157,11 @@ Rules:
 - Write for a competent horse owner: plain language, no hedging into uselessness, technical terms
   explained the first time they appear.
 - Be honest in limitations. This is a screening aid built on still frames, not a diagnosis.
-- Fill viewsAnalyzed with one entry per view supplied, saying what each established. Add an entry
-  with view "not supplied" for each of front/rear/side that is missing, saying what could not be
-  assessed without it. Do not pad: if all three were supplied and usable, say so plainly.
+- Fill viewsAnalyzed with exactly three entries, one for each of front, rear and side, named by that
+  view. For a view that was supplied, say what it established. For one that was NOT supplied, set
+  usable false and begin contributed with "Not supplied —" followed by what could not be assessed
+  without it. Reserve the view value "not supplied" for the case where you cannot tell which view a
+  clip shows. Do not pad: if all three were supplied and usable, say so plainly.
 `.trim();
 
 /** Explains the burst structure so the model knows which frames it may compare directly. */

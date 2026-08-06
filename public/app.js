@@ -179,11 +179,73 @@ function streamJob(jobId) {
 
 // ------------------------------------------------------------------ report
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const sentenceCase = (s) => `${String(s ?? '').charAt(0).toUpperCase()}${String(s ?? '').slice(1)}`;
+
+/**
+ * A collapsible report section.
+ *
+ * The summary line has to carry the finding itself, not just a label — a page
+ * of headings that all read "Footage quality" is no better than the wall of
+ * text it replaced. Each one below answers "so what?" in a single line.
+ */
+function section(title, summary, body, { open = false } = {}) {
+  const box = el('details', 'sec');
+  box.open = open;
+
+  const head = el('summary');
+  head.append(el('span', 'sec-title', title));
+  if (summary) head.append(el('span', 'sec-summary', summary));
+  box.append(head);
+
+  const wrap = el('div', 'sec-body');
+  wrap.append(body);
+  box.append(wrap);
+  return box;
+}
+
+// ---- summary lines: the single most useful fact from each section
+
+function viewsSummary(views) {
+  const used = views.filter((v) => v.view !== 'not supplied' && v.usable);
+  const lost = views.length - used.length;
+  if (!lost) return `All ${plural(used.length, 'view')} usable`;
+  return `${used.length} of 3 views usable · ${lost} missing or unusable`;
+}
+
+function qualitySummary(q) {
+  const rating = sentenceCase(q.rating);
+  const n = q.issues?.length ?? 0;
+  if (!n) return `${rating} — nothing limiting the assessment`;
+  return `${rating} · ${plural(n, 'limitation')} noted`;
+}
+
+function gaitSummary(g) {
+  const grade = g.aaepGrade === 'indeterminate' ? 'Grade unclear' : `AAEP grade ${g.aaepGrade}`;
+  const limb = g.affectedLimbs?.find((l) => !/undetermined/i.test(l.limb));
+  return limb
+    ? `${grade} · ${limb.limb}, ${limb.confidence} confidence`
+    : `${grade} · no limb could be identified`;
+}
+
+function dxSummary(differential) {
+  const top = differential?.[0];
+  if (!top) return '';
+  return `Most likely: ${top.condition} (${top.likelihoodRating}%) · ${plural(differential.length, 'candidate')} considered`;
+}
+
+function planSummary(plan) {
+  const phases = plan.phases?.length ?? 0;
+  return `${plural(phases, 'phase')} · start only once your vet has cleared the horse to work`;
+}
+
+// ---- the report itself
+
 function renderReport({ report, observation, sources, meta }) {
   const root = $('#report');
   root.replaceChildren();
 
-  // Emergency banner first — it is the only thing that matters if it fires.
+  // The emergency banner is the one thing that must never sit behind a click.
   if (report.emergency?.isEmergency) {
     const box = el('div', 'notice notice-danger');
     box.append(el('strong', null, 'Call your veterinarian today.'));
@@ -194,7 +256,6 @@ function renderReport({ report, observation, sources, meta }) {
     root.append(box);
   }
 
-  // Header + run metadata
   const head = el('div', 'report-head');
   head.append(el('h2', null, 'Gait screening report'));
   root.append(head);
@@ -211,29 +272,43 @@ function renderReport({ report, observation, sources, meta }) {
   }
   root.append(strip);
 
-  if (report.viewsAnalyzed?.length) root.append(renderViews(report.viewsAnalyzed));
-  root.append(renderVideoQuality(report.videoQuality));
-  root.append(renderGait(report.gaitAssessment));
-  root.append(renderDifferential(report.differential));
-  root.append(renderPlan(report.strideOptimizationPlan));
+  const controls = el('div', 'sec-controls');
+  const toggle = el('button', 'link-btn', 'Expand all');
+  toggle.type = 'button';
+  toggle.addEventListener('click', () => {
+    const boxes = [...root.querySelectorAll('details.sec')];
+    const opening = boxes.some((b) => !b.open);
+    for (const b of boxes) b.open = opening;
+    toggle.textContent = opening ? 'Collapse all' : 'Expand all';
+  });
+  controls.append(toggle);
+  root.append(controls);
+
+  if (report.viewsAnalyzed?.length) {
+    root.append(section('Views', viewsSummary(report.viewsAnalyzed), renderViews(report.viewsAnalyzed)));
+  }
+  root.append(section('Footage quality', qualitySummary(report.videoQuality), renderVideoQuality(report.videoQuality)));
+  root.append(section('What the gait shows', gaitSummary(report.gaitAssessment), renderGait(report.gaitAssessment)));
+  root.append(section('Possible diagnoses', dxSummary(report.differential), renderDifferential(report.differential)));
+  root.append(section('Getting back to a full stride', planSummary(report.strideOptimizationPlan), renderPlan(report.strideOptimizationPlan)));
 
   if (report.vetVisitChecklist?.length) {
-    const card = el('div', 'card');
-    card.append(el('h2', null, 'Take this to your vet'));
-    card.append(list(report.vetVisitChecklist, 'obs-list'));
-    root.append(card);
+    root.append(section(
+      'Take this to your vet',
+      `${plural(report.vetVisitChecklist.length, 'question')} to raise at the appointment`,
+      list(report.vetVisitChecklist, 'obs-list'),
+    ));
   }
 
   if (report.limitations?.length) {
-    const card = el('div', 'card');
-    card.append(el('h2', null, 'What this cannot tell you'));
-    card.append(list(report.limitations, 'obs-list'));
-    root.append(card);
+    root.append(section(
+      'What this cannot tell you',
+      `${plural(report.limitations.length, 'thing')} video alone cannot settle`,
+      list(report.limitations, 'obs-list'),
+    ));
   }
 
   if (sources?.length) {
-    const card = el('div', 'card');
-    card.append(el('h2', null, 'Sources consulted'));
     const ul = el('ul', 'sources');
     for (const src of sources) {
       const li = el('li');
@@ -244,25 +319,34 @@ function renderReport({ report, observation, sources, meta }) {
       li.append(a);
       ul.append(li);
     }
-    card.append(ul);
-    root.append(card);
+    root.append(section('Sources consulted', `${plural(sources.length, 'published source')} cross-referenced`, ul));
   }
 
   if (observation) {
-    const card = el('div', 'card raw');
-    const details = el('details');
-    details.append(el('summary', null, 'Full frame-by-frame working notes'));
-    details.append(el('pre', null, observation));
-    card.append(details);
-    root.append(card);
+    root.append(section(
+      'Full working notes',
+      'Everything the model saw, frame by frame, before ranking anything',
+      el('pre', null, observation),
+    ));
   }
 
   show('report');
 }
 
+// A collapsed report prints as a page of headings, so open everything first and
+// put it back afterwards — the reader still gets the tidy version on screen.
+let printRestore = null;
+window.addEventListener('beforeprint', () => {
+  const boxes = [...document.querySelectorAll('#report details')];
+  printRestore = boxes.filter((b) => !b.open);
+  for (const b of boxes) b.open = true;
+});
+window.addEventListener('afterprint', () => {
+  for (const b of printRestore ?? []) b.open = false;
+  printRestore = null;
+});
+
 function renderViews(views) {
-  const card = el('div', 'card');
-  card.append(el('h2', null, 'What each view contributed'));
   const ul = el('ul', 'limb-list');
   for (const v of views) {
     const li = el('li');
@@ -272,16 +356,14 @@ function renderViews(views) {
     li.append(el('p', 'limb-evidence', v.contributed));
     ul.append(li);
   }
-  card.append(ul);
-  return card;
+  return ul;
 }
 
 function renderVideoQuality(q) {
-  const card = el('div', 'card');
-  card.append(el('h2', null, 'Footage quality'));
+  const box = el('div');
 
   const rating = el('p');
-  rating.append(el('strong', null, `${q.rating.charAt(0).toUpperCase()}${q.rating.slice(1)}`));
+  rating.append(el('strong', null, sentenceCase(q.rating)));
   rating.append(
     document.createTextNode(
       q.rating === 'good'
@@ -289,20 +371,19 @@ function renderVideoQuality(q) {
         : ' — read the findings below with that in mind.',
     ),
   );
-  card.append(rating);
+  box.append(rating);
 
   if (q.issues?.length) {
-    card.append(el('h5', null, 'Limitations of this clip'), list(q.issues, 'obs-list'));
+    box.append(el('h5', null, 'Limitations of this clip'), list(q.issues, 'obs-list'));
   }
   if (q.suggestions?.length) {
-    card.append(el('h5', null, 'For a better clip next time'), list(q.suggestions, 'obs-list'));
+    box.append(el('h5', null, 'For a better clip next time'), list(q.suggestions, 'obs-list'));
   }
-  return card;
+  return box;
 }
 
 function renderGait(g) {
-  const card = el('div', 'card');
-  card.append(el('h2', null, 'What the gait shows'));
+  const box = el('div');
 
   const row = el('div', 'grade-row');
   row.append(
@@ -315,11 +396,11 @@ function renderGait(g) {
   if (g.gaitsObserved?.length) {
     row.append(el('span', 'grade-scale', `Observed at: ${g.gaitsObserved.join(', ')}`));
   }
-  card.append(row);
-  card.append(el('p', null, g.aaepGradeRationale));
+  box.append(row);
+  box.append(el('p', null, g.aaepGradeRationale));
 
   if (g.affectedLimbs?.length) {
-    card.append(el('h5', null, 'Limbs implicated'));
+    box.append(el('h5', null, 'Limbs implicated'));
     const ul = el('ul', 'limb-list');
     for (const limb of g.affectedLimbs) {
       const li = el('li');
@@ -328,30 +409,27 @@ function renderGait(g) {
       li.append(name, conf, el('p', 'limb-evidence', limb.evidence));
       ul.append(li);
     }
-    card.append(ul);
+    box.append(ul);
   }
 
   if (g.keyObservations?.length) {
-    card.append(el('h5', null, 'Key observations'), list(g.keyObservations, 'obs-list'));
+    box.append(el('h5', null, 'Key observations'), list(g.keyObservations, 'obs-list'));
   }
   if (g.compensatoryPattern && !/^none/i.test(g.compensatoryPattern)) {
-    card.append(el('h5', null, 'Compensation'), el('p', null, g.compensatoryPattern));
+    box.append(el('h5', null, 'Compensation'), el('p', null, g.compensatoryPattern));
   }
-  return card;
+  return box;
 }
 
 function renderDifferential(differential) {
-  const section = el('div');
-  const intro = el('div', 'report-head');
-  intro.append(el('h2', null, 'Possible diagnoses'));
-  intro.append(
+  const box = el('div');
+  box.append(
     el(
       'p',
       'card-sub',
       'Ordered from most likely and most common down to least likely. Percentages are the model\'s rough confidence, not a clinical probability.',
     ),
   );
-  section.append(intro);
 
   for (const dx of differential ?? []) {
     const card = el('div', 'dx');
@@ -414,16 +492,15 @@ function renderDifferential(differential) {
 
     more.append(body);
     card.append(more);
-    section.append(card);
+    box.append(card);
   }
-  return section;
+  return box;
 }
 
 function renderPlan(plan) {
-  const card = el('div', 'card');
-  card.append(el('h2', null, 'Getting back to a full stride'));
-  card.append(el('p', 'card-sub', 'Start this only once your vet has diagnosed the problem and cleared the horse to work.'));
-  card.append(el('p', null, plan.goal));
+  const box = el('div');
+  box.append(el('p', 'card-sub', 'Start this only once your vet has diagnosed the problem and cleared the horse to work.'));
+  box.append(el('p', null, plan.goal));
 
   for (const phase of plan.phases ?? []) {
     const block = el('div', 'phase');
@@ -433,16 +510,16 @@ function renderPlan(plan) {
     block.append(el('p', 'phase-focus', phase.focus));
     block.append(list(phase.sessions));
     block.append(el('p', 'gate', `Move on when: ${phase.progressionCriteria}`));
-    card.append(block);
+    box.append(block);
   }
 
   if (plan.farrierPriorities?.length) {
-    card.append(el('h5', null, 'Farrier priorities'), list(plan.farrierPriorities, 'obs-list'));
+    box.append(el('h5', null, 'Farrier priorities'), list(plan.farrierPriorities, 'obs-list'));
   }
   if (plan.monitoring?.length) {
-    card.append(el('h5', null, 'What to watch, and when to stop'), list(plan.monitoring, 'obs-list'));
+    box.append(el('h5', null, 'What to watch, and when to stop'), list(plan.monitoring, 'obs-list'));
   }
-  return card;
+  return box;
 }
 
 // ----------------------------------------------------------------- controls
