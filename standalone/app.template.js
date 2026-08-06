@@ -141,10 +141,18 @@ for (const slot of slots) {
       status.textContent = `Readable — ${result.duration.toFixed(1)}s, ${result.width}×${result.height}`;
     } else {
       status.className = 'slot-status bad';
-      status.textContent =
-        `Can't be read here — ${result.short}. iPhone video is HEVC, and if the browser won't decode it, ` +
-        `nothing in this page can. Re-export as H.264 MP4, or use the server version, which reads any codec.`;
-      slot.probeDetail = result.detail;
+      status.replaceChildren(
+        el('span', null,
+          `Can't be read here — ${result.short}. iPhone video is HEVC, and if the browser won't decode it, ` +
+          `nothing in this page can. Re-export as H.264 MP4, or use the server version, which reads any codec.`),
+      );
+      if (result.detail) {
+        // Which browser and which layer gave up decides the fix, so put it
+        // where it can be read and copied rather than only in the console.
+        const more = el('details', 'probe-detail');
+        more.append(el('summary', null, 'What the browser reported'), el('pre', null, result.detail));
+        status.append(more);
+      }
     }
     refreshSubmit();
   };
