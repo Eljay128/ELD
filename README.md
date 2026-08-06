@@ -115,6 +115,30 @@ burst resolve the stride more finely.
 The first and last 5% of the clip is skipped: in a hand-held video that is usually the handler
 still setting up or the horse already halted.
 
+### Validation
+
+The sampling change above was driven by, and then confirmed by, a ground-truth test. A synthetic
+trotting horse was rendered with a *known* injected lameness — the head lifts as the left fore
+loads — and put through the full pipeline three times:
+
+| | Run 1 — even sampling | Run 2 — bursts | Run 3 — bursts + distinguishable limbs |
+| --- | --- | --- | --- |
+| Head nod | **not detected**, dismissed as camera pan | **detected**, "stride-locked" | detected |
+| Stride period | not measurable | **0.64s** (true 0.690s) | measured |
+| Laterality | undetermined (low conf.) | undetermined (high conf.) | **left fore — correct** |
+| Footage rated | poor | fair | fair |
+
+Run 1 is why bursts exist: the model correctly refused to call a limb and named the aliasing as the
+reason. Run 2 recovered the nod and measured the stride period to within 7%. Run 3 additionally made
+the near and far limbs visually separable — a flaw in the test stimulus, not the app — and the
+pipeline then applied the "down on sound" rule to the correct limb, while flagging on its own that
+the call inverts if the near/far assignment is wrong.
+
+**What this does and does not establish.** It validates the sampling and the laterality reasoning
+chain end to end. It says nothing about clinical accuracy: a rendered silhouette with an
+exaggerated head-lift is not a lame horse. Real footage remains the only test of whether the
+differential itself is any good.
+
 ### Grounding
 
 `src/knowledge.js` is a reference library handed to the model in the system prompt: the AAEP 0–5
