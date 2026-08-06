@@ -6,7 +6,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { extractFrames, VideoError } from './src/frames.js';
-import { analyzeVideo } from './src/analyze.js';
+import { analyzeCase } from './src/analyze.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(here, 'uploads');
@@ -14,6 +14,10 @@ const PORT = Number(process.env.PORT ?? 3000);
 const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB ?? 250);
 const FRAME_COUNT = Math.min(Math.max(Number(process.env.FRAME_COUNT ?? 18), 6), 24);
 const BURST_COUNT = Math.min(Math.max(Number(process.env.BURST_COUNT ?? 3), 1), 5);
+// Total frames across all views in a case. Three views at FRAME_COUNT each would
+// triple image-token cost, so the budget is shared and divided between them.
+const FRAME_BUDGET = Math.min(Math.max(Number(process.env.FRAME_BUDGET ?? 36), 6), 60);
+const VIEWS = ['front', 'rear', 'side'];
 const WEB_RESEARCH = process.env.WEB_RESEARCH !== 'false';
 
 if (!process.env.ANTHROPIC_API_KEY) {
@@ -33,7 +37,7 @@ const upload = multer({
     destination: UPLOAD_DIR,
     filename: (_req, file, cb) => cb(null, `${randomUUID()}${path.extname(file.originalname).slice(0, 10)}`),
   }),
-  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: 1 },
+  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: VIEWS.length },
   fileFilter: (_req, file, cb) => {
     // Phone uploads occasionally arrive as application/octet-stream, so fall back
     // to the extension. ffprobe is the real gatekeeper either way.
@@ -68,11 +72,25 @@ const app = express();
 app.use(express.static(path.join(here, 'public')));
 
 app.get('/api/config', (_req, res) => {
-  res.json({ maxUploadMb: MAX_UPLOAD_MB, frameCount: FRAME_COUNT, webResearch: WEB_RESEARCH });
+  res.json({ maxUploadMb: MAX_UPLOAD_MB, frameCount: FRAME_COUNT, frameBudget: FRAME_BUDGET, views: VIEWS, webResearch: WEB_RESEARCH });
 });
 
-app.post('/api/analyze', upload.single('video'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No video was uploaded.' });
+const uploadViews = upload.fields([
+  ...VIEWS.map((view) => ({ name: view, maxCount: 1 })),
+  // Back-compat with the original single-file field.
+  { name: 'video', maxCount: 1 },
+]);
+
+app.post('/api/analyze', uploadViews, async (req, res) => {
+  // A plain 'video' upload is treated as a side view — the most informative single angle.
+  const supplied = [
+    ...VIEWS.filter((v) => req.files?.[v]?.[0]).map((v) => ({ view: v, file: req.files[v][0] })),
+    ...(req.files?.video?.[0] && !req.files?.side?.[0] ? [{ view: 'side', file: req.files.video[0] }] : []),
+  ];
+
+  if (!supplied.length) {
+    return res.status(400).json({ error: 'Upload at least one video — front, rear or side view.' });
+  }
 
   const intake = {};
   for (const [key, value] of Object.entries(req.body ?? {})) {
@@ -83,34 +101,38 @@ app.post('/api/analyze', upload.single('video'), async (req, res) => {
   res.json({ jobId });
 
   // Fire and forget: progress and the final report reach the client over SSE.
-  runAnalysis(jobId, req.file.path, intake).catch((err) => {
+  runAnalysis(jobId, supplied, intake).catch((err) => {
     console.error(`[job ${jobId}]`, err);
   });
 });
 
-async function runAnalysis(jobId, videoPath, intake) {
+async function runAnalysis(jobId, supplied, intake) {
   const job = jobs.get(jobId);
   if (!job) return;
   job.status = 'running';
 
+  // Share the frame budget across however many views were supplied.
+  const perView = Math.min(FRAME_COUNT, Math.max(6, Math.floor(FRAME_BUDGET / supplied.length)));
+
   try {
-    pushEvent(jobId, { type: 'progress', message: 'Reading the video and sampling frames…' });
-    const { meta, frames, sampling } = await extractFrames(videoPath, FRAME_COUNT, BURST_COUNT, {
-      gait: intake.gait,
-    });
+    const clips = [];
+    for (const { view, file } of supplied) {
+      pushEvent(jobId, { type: 'progress', message: `Reading the ${view} view and sampling frames…` });
+      const { meta, frames, sampling } = await extractFrames(file.path, perView, BURST_COUNT, {
+        gait: intake.gait,
+      });
+      clips.push({ view, meta, frames, sampling });
+      pushEvent(jobId, {
+        type: 'progress',
+        message:
+          `${view}: ${frames.length} frames in ${sampling.bursts} burst(s) from ${meta.duration.toFixed(1)}s` +
+          `${sampling.motionGuided ? ', placed on the most active passages' : ''}.`,
+      });
+    }
 
-    pushEvent(jobId, {
-      type: 'progress',
-      message:
-        `Sampled ${frames.length} frames in ${sampling.bursts} burst(s) from ${meta.duration.toFixed(1)}s of footage` +
-        `${sampling.motionGuided ? ', placed on the most active passages' : ''}.`,
-    });
-
-    const result = await analyzeVideo({
-      frames,
-      meta,
+    const result = await analyzeCase({
+      clips,
       intake,
-      sampling,
       webResearch: WEB_RESEARCH,
       onProgress: (message) => pushEvent(jobId, { type: 'progress', message }),
     });
@@ -133,7 +155,7 @@ async function runAnalysis(jobId, videoPath, intake) {
     pushEvent(jobId, { type: 'error', message });
     if (!(err instanceof VideoError)) console.error(`[job ${jobId}]`, err);
   } finally {
-    await fs.rm(videoPath, { force: true }).catch(() => {});
+    await Promise.all(supplied.map(({ file }) => fs.rm(file.path, { force: true }).catch(() => {})));
   }
 }
 
@@ -185,5 +207,8 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`\n  Stride running at http://localhost:${PORT}`);
-  console.log(`  Frames per video: ${FRAME_COUNT} in ${BURST_COUNT} bursts   Web research: ${WEB_RESEARCH ? 'on' : 'off'}\n`);
+  console.log(
+    `  Frames: up to ${FRAME_COUNT} per view, ${FRAME_BUDGET} per case, in ${BURST_COUNT} bursts` +
+      `   Web research: ${WEB_RESEARCH ? 'on' : 'off'}\n`,
+  );
 });

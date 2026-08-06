@@ -1,8 +1,9 @@
 # Stride — equine gait screening
 
-Upload a video of a horse in motion. Stride samples frames across the clip, reads the gait
-against the way veterinarians actually localise lameness, checks its reading against current
-published sources, and returns:
+Upload up to three views of a horse in motion — **front** (toward the camera), **rear** (away) and
+**side** (lateral pass). Stride samples frames from each, reads the gait against the way
+veterinarians actually localise lameness, checks its reading against current published sources, and
+returns:
 
 - an estimated **AAEP lameness grade** and which limb(s) are implicated, with the visual evidence
 - a **ranked differential** — most likely and most common first, down to least likely — each entry
@@ -59,6 +60,7 @@ All optional, set in `.env`:
 | `ANTHROPIC_API_KEY` | — | **Required.** |
 | `PORT` | `3000` | HTTP port. |
 | `MAX_UPLOAD_MB` | `250` | Upload size cap. |
+| `FRAME_BUDGET` | `36` | Total frames across all views in one case (clamped 6–60). Divided between the views supplied, so three views cost about the same as one. |
 | `FRAME_COUNT` | `18` | Frames sampled per video (clamped 6–24). More frames resolve the stride cycle better and cost more. |
 | `BURST_COUNT` | `3` | How many dense bursts those frames are split across (clamped 1–5). See Sampling below. |
 | `WEB_RESEARCH` | `true` | Set `false` to skip the live research pass — faster and cheaper, slightly less current. |
@@ -157,6 +159,25 @@ the call inverts if the near/far assignment is wrong.
 chain end to end. It says nothing about clinical accuracy: a rendered silhouette with an
 exaggerated head-lift is not a lame horse. Real footage remains the only test of whether the
 differential itself is any good.
+
+### The three views
+
+Each view answers different questions, and they are not interchangeable:
+
+| View | What it is for |
+| --- | --- |
+| **Front** — toward the camera | The **head nod** — the key forelimb sign. Also medio-lateral limb deviation (winging, paddling, plaiting). |
+| **Rear** — away from the camera | The **hip hike** / sacral rise — the key hindlimb sign. Also hindlimb tracking and base width. |
+| **Side** — lateral pass | Stride length, overtrack, cranial vs caudal phase, foot flight arc, landing pattern, hoof-pastern axis, and **withers movement**. |
+
+The single most valuable cross-view inference is withers movement from the side against the head nod
+from the front: in a genuine forelimb lameness the withers asymmetry tracks with the head nod, while
+in hindlimb-induced compensation it shifts to the opposite side. That distinction decided a real run
+that could not be resolved from one view alone, and it needs two views to make.
+
+One view is enough to run. Three is much better, and the report says per view what each contributed
+and what each missing view would have resolved. The frame budget is shared across views
+(`FRAME_BUDGET`, default 36), so three views cost roughly what one does.
 
 ### Grounding
 

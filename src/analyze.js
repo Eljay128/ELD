@@ -48,20 +48,55 @@ function describeHorse(intake) {
   return filled.length ? filled.join('\n') : '- (No background information supplied by the owner.)';
 }
 
-function frameContent(frames) {
-  return frames.flatMap((frame) => [
-    { type: 'text', text: `Frame ${frame.index + 1} of ${frames.length} — ${frame.label}` },
-    {
-      type: 'image',
-      source: { type: 'base64', media_type: 'image/jpeg', data: frame.base64 },
-    },
-  ]);
+const VIEW_PURPOSE = {
+  front: 'FRONT view (horse trotting TOWARD the camera) — this is where the HEAD NOD is read, and where medio-lateral limb deviation (winging, paddling, plaiting) is visible.',
+  rear: 'REAR view (horse moving AWAY from the camera) — this is where the HIP HIKE / sacral rise is read, and where hindlimb tracking and base width are visible.',
+  side: 'SIDE view (lateral pass) — this is where stride length, overtrack, cranial vs caudal phase, foot flight arc, landing pattern, hoof-pastern axis and WITHERS movement are visible. Withers movement is the sign that separates a true forelimb lameness from a hindlimb-induced false nod.',
+};
+
+/** Frames from every clip, grouped and labelled by camera view. */
+function clipContent(clips) {
+  const blocks = [];
+  for (const clip of clips) {
+    blocks.push({
+      type: 'text',
+      text:
+        `\n===== ${clip.view.toUpperCase()} VIEW — ${clip.frames.length} frames from ` +
+        `${clip.meta.duration.toFixed(1)}s at ${clip.meta.width}x${clip.meta.height} =====\n` +
+        `${VIEW_PURPOSE[clip.view] ?? ''}\n` +
+        describeSampling(clip.sampling, clip.frames),
+    });
+    for (const frame of clip.frames) {
+      blocks.push({ type: 'text', text: `[${clip.view}] frame ${frame.index + 1}/${clip.frames.length} — ${frame.label}` });
+      blocks.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: frame.base64 } });
+    }
+  }
+  return blocks;
 }
 
 const OBSERVER_SYSTEM = `
-You are assisting a veterinary lameness workup by analysing still frames sampled from a video of a
+You are assisting a veterinary lameness workup by analysing still frames sampled from video of a
 horse in motion. The frames arrive in dense bursts — see the sampling note in the user message,
 which tells you exactly which frames are consecutive stride phases and which are seconds apart.
+
+You may be given up to THREE separate clips of the same horse in the same session, each from a
+different camera view, clearly labelled. Each view answers different questions and they are not
+interchangeable:
+
+  FRONT (toward the camera) — the HEAD NOD lives here. Also medio-lateral limb deviation.
+  REAR  (away from the camera) — the HIP HIKE / sacral rise lives here. Also hindlimb tracking.
+  SIDE  (lateral pass) — stride length, overtrack, cranial vs caudal phase, foot flight arc,
+        landing pattern, hoof-pastern axis, and WITHERS movement.
+
+Use them together. The single most valuable cross-view inference available to you: WITHERS movement
+from the SIDE view distinguishes a genuine forelimb lameness from a hindlimb-induced false head nod
+seen from the FRONT. In true forelimb lameness the withers asymmetry tracks with the head nod; in
+hindlimb-induced compensation it shifts toward the opposite side. If you have both views, make that
+call explicitly. If a view is missing, say what it would have resolved.
+
+Compare findings across views and state whether they agree. Two views independently implicating the
+same limb is far stronger evidence than one view alone; two views disagreeing is itself a finding
+and usually means the asymmetry is below the reliable detection threshold.
 
 Your job in this pass is OBSERVATION and RESEARCH, not a final report.
 
@@ -122,6 +157,9 @@ Rules:
 - Write for a competent horse owner: plain language, no hedging into uselessness, technical terms
   explained the first time they appear.
 - Be honest in limitations. This is a screening aid built on still frames, not a diagnosis.
+- Fill viewsAnalyzed with one entry per view supplied, saying what each established. Add an entry
+  with view "not supplied" for each of front/rear/side that is missing, saying what could not be
+  assessed without it. Do not pad: if all three were supplied and usable, say so plainly.
 `.trim();
 
 /** Explains the burst structure so the model knows which frames it may compare directly. */
@@ -140,7 +178,7 @@ function describeSampling(sampling, frames) {
 }
 
 /** Run the observation pass, resuming automatically if a server-tool turn pauses. */
-async function observationPass({ frames, meta, intake, sampling, webResearch, onProgress }) {
+async function observationPass({ clips, intake, webResearch, onProgress }) {
   const tools = webResearch
     ? [{ type: 'web_search_20260209', name: 'web_search', max_uses: 8 }]
     : [];
@@ -154,18 +192,21 @@ async function observationPass({ frames, meta, intake, sampling, webResearch, on
           text: [
             'Analyse this horse for signs of lameness or gait abnormality.',
             '',
-            `The clip is ${meta.duration.toFixed(1)} seconds long at ${meta.width}x${meta.height}.`,
-            describeSampling(sampling, frames),
+            clips.length === 1
+              ? 'ONE camera view was supplied.'
+              : `${clips.length} camera views of the SAME horse in the same session were supplied: ` +
+                `${clips.map((c) => c.view).join(', ')}. Each is labelled below.`,
             '',
             'Owner-supplied background:',
             describeHorse(intake),
           ].filter(Boolean).join('\n'),
         },
-        ...frameContent(frames),
+        ...clipContent(clips),
         {
           type: 'text',
           text:
-            'Work through the five steps in order. Finish with a short ranked shortlist of candidate ' +
+            'Work through the five steps in order. Where more than one view was supplied, compare them ' +
+            'explicitly and state whether they agree. Finish with a short ranked shortlist of candidate ' +
             'diagnoses and the reasoning behind that ordering — the next pass will turn it into the report.',
         },
       ],
@@ -221,7 +262,7 @@ async function observationPass({ frames, meta, intake, sampling, webResearch, on
 }
 
 /** Turn the observation narrative into the strict report schema. */
-async function reportPass({ findings, intake, meta, frameCount, onProgress }) {
+async function reportPass({ findings, intake, clips, onProgress }) {
   onProgress?.('Building the ranked differential and treatment plan…');
 
   const stream = client.messages.stream({
@@ -233,7 +274,7 @@ async function reportPass({ findings, intake, meta, frameCount, onProgress }) {
       {
         role: 'user',
         content: [
-          `Video: ${meta.duration.toFixed(1)}s, ${frameCount} frames sampled.`,
+          `Views supplied: ${clips.map((c) => `${c.view} (${c.meta.duration.toFixed(1)}s, ${c.frames.length} frames)`).join('; ')}.`,
           '',
           'Owner-supplied background:',
           describeHorse(intake),
@@ -264,8 +305,12 @@ async function reportPass({ findings, intake, meta, frameCount, onProgress }) {
   }
 }
 
-export async function analyzeVideo({ frames, meta, intake, sampling, webResearch = true, onProgress }) {
-  const observation = await observationPass({ frames, meta, intake, sampling, webResearch, onProgress });
+/**
+ * Analyse one case. `clips` is 1-3 entries of {view, meta, frames, sampling} —
+ * front, rear and side views of the same horse in the same session.
+ */
+export async function analyzeCase({ clips, intake, webResearch = true, onProgress }) {
+  const observation = await observationPass({ clips, intake, webResearch, onProgress });
 
   if (observation.sources.length) {
     onProgress?.(`Cross-referenced ${observation.sources.length} published sources.`);
@@ -274,8 +319,7 @@ export async function analyzeVideo({ frames, meta, intake, sampling, webResearch
   const { report, usage } = await reportPass({
     findings: observation.findings,
     intake,
-    meta,
-    frameCount: frames.length,
+    clips,
     onProgress,
   });
 
@@ -287,8 +331,9 @@ export async function analyzeVideo({ frames, meta, intake, sampling, webResearch
     sources: observation.sources,
     meta: {
       model: MODEL,
-      frameCount: frames.length,
-      videoDuration: meta.duration,
+      views: clips.map((c) => c.view),
+      frameCount: clips.reduce((n, c) => n + c.frames.length, 0),
+      videoDuration: clips.reduce((d, c) => d + c.meta.duration, 0),
       webResearch,
       tokensUsed: totalTokens(observation.usage) + totalTokens(usage),
       generatedAt: new Date().toISOString(),

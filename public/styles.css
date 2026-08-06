@@ -438,3 +438,43 @@ textarea { resize: vertical; }
   body { background: #fff; }
   .card, .dx { box-shadow: none; break-inside: avoid; }
 }
+
+/* ------------------------------------------------------------ view slots */
+.slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 14px; }
+.slot {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ground);
+  padding: 13px;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.slot.filled { border-color: var(--accent); }
+.slot.dragging { border-color: var(--accent); background: var(--accent-wash); }
+.slot-head {
+  font-family: var(--mono); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3);
+}
+.slot-tag {
+  display: inline-block; background: var(--panel-2); color: var(--ink);
+  border-radius: 3px; padding: 2px 7px; margin-right: 6px; font-weight: 700;
+}
+.slot.filled .slot-tag { background: var(--accent); color: var(--accent-ink); }
+.slot-why { margin: 0; font-size: 0.82rem; color: var(--ink-2); line-height: 1.45; }
+.slot-drop {
+  margin-top: auto;
+  border: 1px dashed var(--line-strong); border-radius: 4px;
+  background: var(--panel);
+  min-height: 78px; padding: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.slot-drop:hover, .slot-drop:focus-visible { border-color: var(--accent); outline: none; }
+.slot.filled .slot-drop { border-style: solid; cursor: default; }
+.slot-idle { font-family: var(--mono); font-size: 0.76rem; color: var(--accent); }
+.slot-preview { width: 100%; border-radius: 3px; background: #000; display: block; }
+.slot-name {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3);
+  word-break: break-all; line-height: 1.4;
+}
+.slot-clear { align-self: flex-start; font-size: 0.78rem; }

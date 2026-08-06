@@ -45,37 +45,59 @@
         <section id="view-upload">
           <form id="form" novalidate>
             <div class="card">
-              <h2>1. The video</h2>
+              <h2>1. The videos</h2>
+              <p class="card-sub">
+                Up to three views of the same horse, same session. Each answers a different question,
+                and they are not interchangeable. One is enough to start; three is far better.
+              </p>
 
-              <div id="dropzone" class="dropzone" tabindex="0" role="button"
-                   aria-label="Choose a video file or drop one here">
-                <input type="file" id="video" name="video" accept="video/*" hidden />
-                <div class="dz-idle">
-                  <div class="dz-icon" aria-hidden="true">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="2" y="4" width="20" height="16" rx="2" />
-                      <path d="M10 9.5v5l4-2.5z" fill="currentColor" stroke="none" />
-                    </svg>
+              <div class="slots">
+                <div class="slot" data-view="front">
+                  <input type="file" id="v-front" name="front" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Front</span> toward the camera</div>
+                  <p class="slot-why">Where the <strong>head nod</strong> is read — the key forelimb sign.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the front view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
                   </div>
-                  <p class="dz-title">Drop a video here, or click to choose</p>
-                  <p class="dz-sub">MP4, MOV, AVI, WebM or MKV · <span id="size-limit">up to 250 MB</span></p>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
                 </div>
-                <div class="dz-chosen" hidden>
-                  <video id="preview" playsinline muted controls></video>
-                  <p class="dz-filename" id="filename"></p>
-                  <button type="button" class="link-btn" id="clear-file">Choose a different video</button>
+
+                <div class="slot" data-view="rear">
+                  <input type="file" id="v-rear" name="rear" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Rear</span> away from the camera</div>
+                  <p class="slot-why">Where the <strong>hip hike</strong> is read — the key hindlimb sign.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the rear view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
+                </div>
+
+                <div class="slot" data-view="side">
+                  <input type="file" id="v-side" name="side" accept="video/*" hidden />
+                  <div class="slot-head"><span class="slot-tag">Side</span> lateral pass</div>
+                  <p class="slot-why">Stride length, foot flight, landing — and <strong>withers movement</strong>, which separates a real forelimb lameness from a hind-limb fake.</p>
+                  <div class="slot-drop" tabindex="0" role="button" aria-label="Choose the side view video">
+                    <span class="slot-idle">Choose video</span>
+                    <video class="slot-preview" playsinline muted controls hidden></video>
+                    <span class="slot-name"></span>
+                  </div>
+                  <button type="button" class="link-btn slot-clear" hidden>Remove</button>
                 </div>
               </div>
 
               <details class="tips">
-                <summary>How to shoot a clip that's actually diagnostic</summary>
+                <summary>How to shoot a set that's actually diagnostic</summary>
                 <ul>
-                  <li><strong>Trot, in hand, on a loose lead.</strong> A tight lead masks the head nod, which is the single most useful sign in the whole clip.</li>
+                  <li><strong>Trot, in hand, on a loose lead.</strong> A tight lead masks the head nod, which is the single most useful sign in the whole set.</li>
                   <li><strong>Hard, flat, level ground.</strong> A driveway or aisle beats an arena for spotting foot pain.</li>
-                  <li><strong>Film from the side first</strong> for stride length and head carriage — then straight toward and straight away from the camera.</li>
-                  <li><strong>Get the whole horse in frame</strong> for at least 8–10 seconds, and hold the camera still. Let the horse move past you rather than panning.</li>
-                  <li><strong>Good light, no long shadows.</strong> Film the same clip on a circle in both directions if you can — many lamenesses only show on a turn.</li>
+                  <li><strong>Camera still on a fence post or tripod.</strong> Don't pan, don't zoom, don't walk with the horse — let it move through a fixed background so vertical movement can be measured against something stationary.</li>
+                  <li><strong>Front and rear:</strong> trot 25–30 m straight toward the camera, then straight away. Keep the whole horse in frame.</li>
+                  <li><strong>Side:</strong> square to the track, poll, withers and croup all visible and unobstructed, 6–8 consecutive strides in one take.</li>
+                  <li><strong>8–15 seconds each</strong>, good light, no long shadow stripes across the ground.</li>
                 </ul>
               </details>
             </div>
@@ -115,17 +137,6 @@
                     <option>Arena / sand</option>
                     <option>Grass</option>
                     <option>Deep or soft footing</option>
-                  </select>
-                </label>
-                <label>
-                  Camera angle
-                  <select name="viewAngle">
-                    <option value="">—</option>
-                    <option>From the side</option>
-                    <option>Toward the camera</option>
-                    <option>Away from the camera</option>
-                    <option>Mixed angles</option>
-                    <option>On a circle / lunge</option>
                   </select>
                 </label>
                 <label>
@@ -198,7 +209,7 @@
 
             <div class="submit-row">
               <button type="submit" id="submit" class="primary" disabled>Analyse gait</button>
-              <p class="submit-note" id="submit-note">Choose a video to begin.</p>
+              <p class="submit-note" id="submit-note">Add at least one video to begin.</p>
             </div>
           </form>
         </section>

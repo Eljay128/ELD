@@ -33,84 +33,113 @@ const list = (items, className) => {
 
 // ------------------------------------------------------------------ upload
 
-const dropzone = $('#dropzone');
-const fileInput = $('#video');
 const submitBtn = $('#submit');
+const slots = [...document.querySelectorAll('.slot')];
 
 fetch('/api/config')
   .then((r) => r.json())
   .then((cfg) => {
-    $('#size-limit').textContent = `up to ${cfg.maxUploadMb} MB`;
+    const limit = document.querySelector('#size-limit');
+    if (limit) limit.textContent = `up to ${cfg.maxUploadMb} MB`;
   })
   .catch(() => {});
 
-function setFile(file) {
-  if (!file) return;
-  fileInput.files = (() => {
+function countChosen() {
+  return slots.filter((s) => s.querySelector('input[type=file]').files.length).length;
+}
+
+function refreshSubmit() {
+  const n = countChosen();
+  submitBtn.disabled = n === 0;
+  $('#submit-note').textContent =
+    n === 0
+      ? 'Add at least one video to begin.'
+      : n === 3
+        ? 'All three views — the strongest set this can work from.'
+        : `${n} of 3 views. Adding the ${slots
+            .filter((s) => !s.querySelector('input[type=file]').files.length)
+            .map((s) => s.dataset.view)
+            .join(' and ')} view would let it resolve more.`;
+}
+
+function wireSlot(slot) {
+  const input = slot.querySelector('input[type=file]');
+  const drop = slot.querySelector('.slot-drop');
+  const idle = slot.querySelector('.slot-idle');
+  const preview = slot.querySelector('.slot-preview');
+  const nameEl = slot.querySelector('.slot-name');
+  const clear = slot.querySelector('.slot-clear');
+
+  const set = (file) => {
+    if (!file) return;
     const dt = new DataTransfer();
     dt.items.add(file);
-    return dt.files;
-  })();
+    input.files = dt.files;
 
-  const preview = $('#preview');
-  if (preview.src) URL.revokeObjectURL(preview.src);
-  preview.src = URL.createObjectURL(file);
+    if (preview.src) URL.revokeObjectURL(preview.src);
+    preview.src = URL.createObjectURL(file);
+    preview.hidden = false;
+    idle.hidden = true;
+    nameEl.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    slot.classList.add('filled');
+    clear.hidden = false;
+    refreshSubmit();
+  };
 
-  $('#filename').textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
-  dropzone.querySelector('.dz-idle').hidden = true;
-  dropzone.querySelector('.dz-chosen').hidden = false;
-  dropzone.classList.add('has-file');
+  const reset = () => {
+    input.value = '';
+    if (preview.src) URL.revokeObjectURL(preview.src);
+    preview.removeAttribute('src');
+    preview.hidden = true;
+    idle.hidden = false;
+    nameEl.textContent = '';
+    slot.classList.remove('filled');
+    clear.hidden = true;
+    refreshSubmit();
+  };
 
-  submitBtn.disabled = false;
-  $('#submit-note').textContent = 'Filling in the details below improves the result.';
-}
-
-function clearFile() {
-  fileInput.value = '';
-  const preview = $('#preview');
-  if (preview.src) URL.revokeObjectURL(preview.src);
-  preview.removeAttribute('src');
-  dropzone.querySelector('.dz-idle').hidden = false;
-  dropzone.querySelector('.dz-chosen').hidden = true;
-  dropzone.classList.remove('has-file');
-  submitBtn.disabled = true;
-  $('#submit-note').textContent = 'Choose a video to begin.';
-}
-
-dropzone.addEventListener('click', (e) => {
-  if (!dropzone.classList.contains('has-file') && !e.target.closest('button')) fileInput.click();
-});
-dropzone.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && !dropzone.classList.contains('has-file')) {
-    e.preventDefault();
-    fileInput.click();
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      input.click();
+    }
+  });
+  for (const type of ['dragenter', 'dragover']) {
+    drop.addEventListener(type, (e) => {
+      e.preventDefault();
+      slot.classList.add('dragging');
+    });
   }
-});
-for (const type of ['dragenter', 'dragover']) {
-  dropzone.addEventListener(type, (e) => {
-    e.preventDefault();
-    dropzone.classList.add('dragging');
-  });
+  for (const type of ['dragleave', 'drop']) {
+    drop.addEventListener(type, (e) => {
+      e.preventDefault();
+      slot.classList.remove('dragging');
+    });
+  }
+  drop.addEventListener('drop', (e) => set(e.dataTransfer?.files?.[0]));
+  input.addEventListener('change', () => set(input.files[0]));
+  clear.addEventListener('click', reset);
+
+  slot.reset = reset;
 }
-for (const type of ['dragleave', 'drop']) {
-  dropzone.addEventListener(type, (e) => {
-    e.preventDefault();
-    dropzone.classList.remove('dragging');
-  });
+
+slots.forEach(wireSlot);
+refreshSubmit();
+
+function clearAll() {
+  slots.forEach((s) => s.reset());
 }
-dropzone.addEventListener('drop', (e) => setFile(e.dataTransfer?.files?.[0]));
-fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
-$('#clear-file').addEventListener('click', clearFile);
 
 // ---------------------------------------------------------------- pipeline
 
 $('#form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!fileInput.files[0]) return;
+  if (countChosen() === 0) return;
 
   $('#log').replaceChildren();
   show('working');
-  addLog('Uploading video…');
+  addLog(`Uploading ${countChosen()} video${countChosen() > 1 ? 's' : ''}…`);
 
   try {
     const res = await fetch('/api/analyze', { method: 'POST', body: new FormData(e.target) });
@@ -172,6 +201,7 @@ function renderReport({ report, observation, sources, meta }) {
 
   const strip = el('ul', 'meta-strip');
   for (const item of [
+    meta.views?.length ? `${meta.views.join(' + ')} view${meta.views.length > 1 ? 's' : ''}` : 'single view',
     `${meta.frameCount} frames analysed`,
     `${meta.videoDuration.toFixed(1)}s of footage`,
     meta.webResearch ? 'Web research: on' : 'Web research: off',
@@ -181,6 +211,7 @@ function renderReport({ report, observation, sources, meta }) {
   }
   root.append(strip);
 
+  if (report.viewsAnalyzed?.length) root.append(renderViews(report.viewsAnalyzed));
   root.append(renderVideoQuality(report.videoQuality));
   root.append(renderGait(report.gaitAssessment));
   root.append(renderDifferential(report.differential));
@@ -227,6 +258,22 @@ function renderReport({ report, observation, sources, meta }) {
   }
 
   show('report');
+}
+
+function renderViews(views) {
+  const card = el('div', 'card');
+  card.append(el('h2', null, 'What each view contributed'));
+  const ul = el('ul', 'limb-list');
+  for (const v of views) {
+    const li = el('li');
+    const missing = v.view === 'not supplied' || !v.usable;
+    li.append(el('span', 'limb-name', v.view));
+    li.append(el('span', `conf ${missing ? 'low' : 'high'}`, missing ? 'not usable' : 'used'));
+    li.append(el('p', 'limb-evidence', v.contributed));
+    ul.append(li);
+  }
+  card.append(ul);
+  return card;
 }
 
 function renderVideoQuality(q) {
@@ -401,7 +448,7 @@ function renderPlan(plan) {
 // ----------------------------------------------------------------- controls
 
 $('#restart').addEventListener('click', () => {
-  clearFile();
+  clearAll();
   show('upload');
 });
 $('#retry').addEventListener('click', () => show('upload'));

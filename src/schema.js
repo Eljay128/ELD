@@ -10,6 +10,7 @@ export const REPORT_SCHEMA = {
   additionalProperties: false,
   required: [
     'emergency',
+    'viewsAnalyzed',
     'videoQuality',
     'gaitAssessment',
     'differential',
@@ -18,6 +19,33 @@ export const REPORT_SCHEMA = {
     'limitations',
   ],
   properties: {
+    viewsAnalyzed: {
+      type: 'array',
+      description:
+        'One entry per camera view supplied, stating what that view did and did not contribute. ' +
+        'Name any of the three standard views (front, rear, side) that were NOT supplied and what was lost as a result.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['view', 'usable', 'contributed'],
+        properties: {
+          view: {
+            type: 'string',
+            enum: ['front', 'rear', 'side', 'not supplied'],
+          },
+          usable: {
+            type: 'boolean',
+            description: 'Whether this view was of good enough quality to contribute findings.',
+          },
+          contributed: {
+            type: 'string',
+            description:
+              'What this view established, or — for a missing view — what could not be assessed without it.',
+          },
+        },
+      },
+    },
+
     emergency: {
       type: 'object',
       additionalProperties: false,
