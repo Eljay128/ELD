@@ -392,24 +392,44 @@ async function analyse(clips, intake) {
   }
   if (sources.length) log(`Cross-referenced ${sources.length} published sources.`);
 
-  // ---- pass 2: structured report
-  log('Building the ranked differential and treatment plan…');
-  const rep = await callClaude({
-    model: MODEL, max_tokens: 32000,
-    system: [{ type: 'text', text: `${CONFIG.reportSystem}\n\n${knowledge}` }],
-    output_config: { effort: 'high', format: { type: 'json_schema', schema: CONFIG.schema } },
-    messages: [{ role: 'user', content: [
-      `Views supplied: ${clips.map((c) => `${c.view} (${c.meta.duration.toFixed(1)}s, ${c.frames.length} frames)`).join('; ')}.`,
-      '', 'Owner-supplied background:', background, '',
-      '--- OBSERVATION AND RESEARCH PASS ---', findings, '--- END ---', '',
-      'Produce the structured screening report.',
-    ].join('\n') }],
-  });
+  // ---- pass 2: structured report, in two calls
+  // The full report compiles to a grammar the API rejects as too large, so the
+  // assessment and the plan are requested separately and merged. The plan call
+  // is given the finished assessment, so it is written against the real ranking.
+  const context = [
+    `Views supplied: ${clips.map((c) => `${c.view} (${c.meta.duration.toFixed(1)}s, ${c.frames.length} frames)`).join('; ')}.`,
+    '', 'Owner-supplied background:', background, '',
+    '--- OBSERVATION AND RESEARCH PASS ---', findings, '--- END ---',
+  ].join('\n');
 
-  const text = rep.content.find((b) => b.type === 'text')?.text;
-  if (!text) throw new Error('The model returned an empty report.');
+  const structured = async (schema, prompt) => {
+    const res = await callClaude({
+      model: MODEL, max_tokens: 32000,
+      system: [{ type: 'text', text: `${CONFIG.reportSystem}\n\n${knowledge}` }],
+      output_config: { effort: 'high', format: { type: 'json_schema', schema } },
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const text = res.content.find((b) => b.type === 'text')?.text;
+    if (!text) throw new Error('The model returned an empty report.');
+    return JSON.parse(text);
+  };
+
+  log('Building the ranked differential…');
+  const assessment = await structured(CONFIG.assessmentSchema,
+    `${context}\n\nProduce the assessment section of the screening report: emergency status, what each view contributed, footage quality, the gait assessment, and the ranked differential.`);
+
+  log('Writing the treatment and conditioning plan…');
+  const plan = await structured(CONFIG.planSchema, [
+    context, '',
+    '--- ASSESSMENT ALREADY PRODUCED ---', JSON.stringify(assessment, null, 2), '--- END ---', '',
+    'Now produce the remaining sections: the stride optimisation plan, the checklist to take to the',
+    'vet, and the limitations of this assessment. Write the plan against the differential above —',
+    'it must make sense for the top-ranked conditions specifically, and stay conditional on',
+    'veterinary clearance.',
+  ].join('\n'));
+
   return {
-    report: JSON.parse(text),
+    report: { ...assessment, ...plan },
     observation: findings,
     sources,
     meta: {

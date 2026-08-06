@@ -107,16 +107,35 @@ video ──▶ ffmpeg samples N frames as dense bursts (see Sampling below)
        laterality rules; then searches published sources to check its reading
              │
              ▼
-     Pass 2 · structured report           (claude-opus-5, JSON schema)
-       turns the findings into a ranked differential with remedies
+     Pass 2a · assessment                 (claude-opus-5, JSON schema)
+       emergency status, per-view contribution, footage quality, gait
+       assessment, ranked differential with remedies
+             │
+             ▼
+     Pass 2b · plan                       (claude-opus-5, JSON schema)
+       conditioning plan, vet checklist and limitations, written with
+       the finished differential in hand
              │
              ▼
      browser  (progress streamed over SSE)
 ```
 
-**Why two passes.** One call juggling server-side web search *and* a rigid output schema is much
-more likely to come back malformed or truncated. Splitting them keeps the JSON reliable and lets
-the observation pass reason freely and search as much as it needs.
+**Why the observation pass is separate.** One call juggling server-side web search *and* a rigid
+output schema is much more likely to come back malformed or truncated. Splitting them keeps the JSON
+reliable and lets the observation pass reason freely and search as much as it needs.
+
+**Why the report itself is two calls.** The API compiles an output schema into a grammar and rejects
+one that grows too large. The full report is over that ceiling — measured, not guessed: the schema
+minus one field compiles, and adding as few as four trivial string fields fails. Adding
+`viewsAnalyzed` for three-view support was exactly what tipped it over, and it failed with
+`The compiled grammar is too large`.
+
+Splitting the report into an assessment schema and a plan schema puts both comfortably inside the
+limit, and it improves the output: pass 2b receives the finished assessment, so the rehab plan is
+written against the actual ranked differential instead of being generated alongside it.
+
+`npm run doctor` now sends both schemas to the API and checks they compile, because that ceiling is
+not expressible as a field count and a single added field can cross it.
 
 **Why frames rather than the video file.** The Messages API takes images, not video.
 

@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 
 import { OBSERVER_SYSTEM, REPORT_SYSTEM, VIEW_PURPOSE } from '../src/analyze.js';
 import { buildKnowledgePrompt } from '../src/knowledge.js';
-import { REPORT_SCHEMA } from '../src/schema.js';
+import { ASSESSMENT_SCHEMA, PLAN_SCHEMA } from '../src/schema.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -38,7 +38,8 @@ const config = {
   observerSystem: OBSERVER_SYSTEM,
   reportSystem: REPORT_SYSTEM,
   viewPurpose: VIEW_PURPOSE,
-  schema: REPORT_SCHEMA,
+  assessmentSchema: ASSESSMENT_SCHEMA,
+  planSchema: PLAN_SCHEMA,
 };
 
 // </script> inside a JSON string literal would close the host <script> tag.

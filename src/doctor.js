@@ -15,7 +15,7 @@ import ffprobeStatic from 'ffprobe-static';
 import Anthropic from '@anthropic-ai/sdk';
 import { extractFrames } from './frames.js';
 import { buildKnowledgePrompt, CONDITIONS } from './knowledge.js';
-import { REPORT_SCHEMA } from './schema.js';
+import { ASSESSMENT_SCHEMA, PLAN_SCHEMA, REPORT_SCHEMA } from './schema.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -143,6 +143,33 @@ if (process.env.ANTHROPIC_API_KEY) {
       console.log(`      ${WARN} accepted, but the model chose not to search on this probe`);
     }
     return searched ? 'search executed' : 'tool accepted';
+  });
+
+  // The API compiles each schema into a grammar and rejects one that is too
+  // large. That ceiling is not documented as a field count, and the report
+  // schema once crossed it by a single added field, so it is checked live.
+  if (authOk) await check('Report schemas compile', async () => {
+    const sizes = [];
+    for (const [name, schema] of [['assessment', ASSESSMENT_SCHEMA], ['plan', PLAN_SCHEMA]]) {
+      try {
+        await client.messages.create({
+          model: 'claude-opus-5',
+          max_tokens: 64,
+          output_config: { format: { type: 'json_schema', schema } },
+          messages: [{ role: 'user', content: 'Return a minimal valid object.' }],
+        });
+        sizes.push(`${name} ok`);
+      } catch (err) {
+        if (/grammar is too large/.test(err?.error?.error?.message ?? err?.message ?? '')) {
+          throw problem(
+            `The ${name} schema is too large for the API to compile.`,
+            'Move fields into the other schema in src/schema.js, or split it again.',
+          );
+        }
+        throw problem(err?.message ?? String(err));
+      }
+    }
+    return sizes.join(', ');
   });
 }
 

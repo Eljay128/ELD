@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { buildKnowledgePrompt } from './knowledge.js';
-import { REPORT_SCHEMA } from './schema.js';
+import { ASSESSMENT_SCHEMA, PLAN_SCHEMA } from './schema.js';
 
 const MODEL = 'claude-opus-5';
 
@@ -261,32 +261,14 @@ async function observationPass({ clips, intake, webResearch, onProgress }) {
   return { findings, sources, usage: response.usage };
 }
 
-/** Turn the observation narrative into the strict report schema. */
-async function reportPass({ findings, intake, clips, onProgress }) {
-  onProgress?.('Building the ranked differential and treatment plan…');
-
+/** One structured call. Kept small because the API caps compiled schema size. */
+async function structuredCall({ schema, prompt }) {
   const stream = client.messages.stream({
     model: MODEL,
     max_tokens: 32000,
     system: [{ type: 'text', text: `${REPORT_SYSTEM}\n\n${buildKnowledgePrompt()}`, cache_control: { type: 'ephemeral' } }],
-    output_config: { effort: 'high', format: { type: 'json_schema', schema: REPORT_SCHEMA } },
-    messages: [
-      {
-        role: 'user',
-        content: [
-          `Views supplied: ${clips.map((c) => `${c.view} (${c.meta.duration.toFixed(1)}s, ${c.frames.length} frames)`).join('; ')}.`,
-          '',
-          'Owner-supplied background:',
-          describeHorse(intake),
-          '',
-          '--- OBSERVATION AND RESEARCH PASS ---',
-          findings,
-          '--- END ---',
-          '',
-          'Produce the structured screening report.',
-        ].join('\n'),
-      },
-    ],
+    output_config: { effort: 'high', format: { type: 'json_schema', schema } },
+    messages: [{ role: 'user', content: prompt }],
   });
 
   const response = await stream.finalMessage();
@@ -299,10 +281,61 @@ async function reportPass({ findings, intake, clips, onProgress }) {
   if (!text) throw new Error('The model returned an empty report.');
 
   try {
-    return { report: JSON.parse(text), usage: response.usage };
+    return { data: JSON.parse(text), usage: response.usage };
   } catch (err) {
     throw new Error('The report came back in an unreadable format. Please try again.', { cause: err });
   }
+}
+
+/**
+ * Turn the observation narrative into the strict report schema, in two calls.
+ * The full report compiles to a grammar the API rejects as too large, so the
+ * assessment and the plan are requested separately and merged. The plan call
+ * gets the finished assessment, so the rehab work is written against the actual
+ * ranked differential rather than in parallel with it.
+ */
+async function reportPass({ findings, intake, clips, onProgress }) {
+  const context = [
+    `Views supplied: ${clips.map((c) => `${c.view} (${c.meta.duration.toFixed(1)}s, ${c.frames.length} frames)`).join('; ')}.`,
+    '',
+    'Owner-supplied background:',
+    describeHorse(intake),
+    '',
+    '--- OBSERVATION AND RESEARCH PASS ---',
+    findings,
+    '--- END ---',
+  ].join('\n');
+
+  onProgress?.('Building the ranked differential…');
+  const assessment = await structuredCall({
+    schema: ASSESSMENT_SCHEMA,
+    prompt: `${context}\n\nProduce the assessment section of the screening report: emergency status, what each view contributed, footage quality, the gait assessment, and the ranked differential.`,
+  });
+
+  onProgress?.('Writing the treatment and conditioning plan…');
+  const plan = await structuredCall({
+    schema: PLAN_SCHEMA,
+    prompt: [
+      context,
+      '',
+      '--- ASSESSMENT ALREADY PRODUCED ---',
+      JSON.stringify(assessment.data, null, 2),
+      '--- END ---',
+      '',
+      'Now produce the remaining sections: the stride optimisation plan, the checklist to take to the',
+      'vet, and the limitations of this assessment. Write the plan against the differential above —',
+      'it must make sense for the top-ranked conditions specifically, and stay conditional on',
+      'veterinary clearance.',
+    ].join('\n'),
+  });
+
+  return {
+    report: { ...assessment.data, ...plan.data },
+    usage: {
+      input_tokens: (assessment.usage?.input_tokens ?? 0) + (plan.usage?.input_tokens ?? 0),
+      output_tokens: (assessment.usage?.output_tokens ?? 0) + (plan.usage?.output_tokens ?? 0),
+    },
+  };
 }
 
 /**
