@@ -6,5 +6,5 @@ tmp/
 .DS_Store
 
 # local run artifacts
-real-report*.json
+*-report.json
 *.log
