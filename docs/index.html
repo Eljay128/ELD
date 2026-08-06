@@ -709,6 +709,10 @@ textarea { resize: vertical; }
           <div class="card">
             <h2>Something went wrong</h2>
             <p id="error-message" class="error-text"></p>
+            <details class="tips" hidden>
+              <summary>What the browser reported (copy this if you're asking for help)</summary>
+              <pre id="error-detail"></pre>
+            </details>
             <button type="button" class="primary" id="retry">Back</button>
           </div>
         </section>
@@ -756,9 +760,30 @@ function show(name) {
   for (const [k, v] of Object.entries(views)) v.hidden = k !== name;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-function fail(msg) {
+function fail(msg, detail) {
   $('#error-message').textContent = msg;
+  const box = $('#error-detail');
+  box.textContent = detail ?? '';
+  box.parentElement.hidden = !detail;
   show('error');
+}
+
+/** What the browser itself reports about a clip it would not open. Guessing at
+ *  this from the outside wastes runs; these five lines say which layer failed. */
+function decodeReport(video, file) {
+  const probe = document.createElement('video');
+  const can = (type) => probe.canPlayType(type) || 'no';
+  const NETWORK = ['EMPTY', 'IDLE', 'LOADING', 'NO_SOURCE'];
+  const READY = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'];
+  return [
+    `file        ${file.name} · ${(file.size / 1048576).toFixed(1)} MB · type "${file.type || 'unreported'}"`,
+    `readyState  ${video.readyState} (${READY[video.readyState] ?? '?'})`,
+    `network     ${video.networkState} (${NETWORK[video.networkState] ?? '?'})`,
+    `mediaError  ${video.error ? `code ${video.error.code} — ${video.error.message || 'no message'}` : 'none'}`,
+    `size        ${video.videoWidth}x${video.videoHeight}`,
+    `can play    h264=${can('video/mp4; codecs="avc1.42E01E"')} · hevc=${can('video/mp4; codecs="hvc1"')} · quicktime=${can('video/quicktime')}`,
+    `browser     ${navigator.userAgent}`,
+  ].join('\n');
 }
 function log(msg) {
   $('#log').append(el('li', null, msg));
@@ -878,14 +903,18 @@ function loadVideo(file) {
 
     // Decoding is the browser's job here, and browsers differ: Safari and Chrome
     // handle iPhone HEVC .mov, Firefox generally does not.
-    v.addEventListener('error', () => {
+    const rejectWith = (message) => {
+      const err = new Error(message);
+      err.detail = decodeReport(v, file);
       v.remove();
-      finish(reject, new Error(
-        `This browser could not decode ${file.name}. It is almost certainly the video codec, not the file — ` +
-        `iPhone .mov clips are HEVC, which Safari and Chrome play but Firefox does not. Try Safari or Chrome, ` +
-        `or re-export the clip as H.264 MP4.`,
-      ));
-    }, { once: true });
+      finish(reject, err);
+    };
+
+    v.addEventListener('error', () => rejectWith(
+      `This browser could not decode ${file.name}. It is almost certainly the video codec, not the file — ` +
+      `iPhone .mov clips are HEVC, which Safari and Chrome play but Firefox does not. Try Safari or Chrome, ` +
+      `or re-export the clip as H.264 MP4.`,
+    ), { once: true });
 
     // loadedmetadata can fire before the frame size is known. A zero-sized video
     // does not throw — it silently produces empty canvas exports — so wait for
@@ -906,15 +935,11 @@ function loadVideo(file) {
     // that loads on its own.
     Promise.resolve(v.play()).then(() => v.pause()).catch(() => {});
 
-    const timer = setTimeout(() => {
-      v.remove();
-      finish(reject, new Error(
-        `${file.name} never reported a picture size, so no frames could be read from it. This usually means the ` +
-        `browser would not decode it — iPhone .MOV clips are HEVC, which Safari and Chrome handle and Firefox ` +
-        `does not. Try Safari or Chrome, re-export as H.264 MP4, or run the server version, which uses ffmpeg ` +
-        `and reads any codec.`,
-      ));
-    }, 45000);
+    const timer = setTimeout(() => rejectWith(
+      `${file.name} never reported a picture size, so no frames could be read from it. Open the details below — ` +
+      `they say which layer gave up, which is what decides the fix. The server version sidesteps this entirely: ` +
+      `it uses ffmpeg and reads any codec.`,
+    ), 45000);
   });
 }
 
@@ -1290,6 +1315,25 @@ async function analyse(clips, intake) {
   };
 }
 
+/** iOS allows only a handful of live video decoders at once, and each filled
+ *  slot preview holds one. A fourth element can then fail to load with no error
+ *  at all — it simply never reports a size. Release the previews for the
+ *  duration of the read and put them back afterwards. */
+function releasePreviews() {
+  const held = [];
+  for (const slot of slots) {
+    const preview = slot.querySelector('.slot-preview');
+    if (!preview?.src) continue;
+    held.push([preview, preview.src]);
+    preview.pause();
+    preview.removeAttribute('src');
+    preview.load();
+  }
+  return () => {
+    for (const [preview, src] of held) preview.src = src;
+  };
+}
+
 /* ------------------------------------------------- keeping the run alive */
 // The whole analysis happens in this tab and takes eight minutes or more. On a
 // phone that is long enough for the screen to lock, which suspends the page and
@@ -1335,6 +1379,8 @@ $('#form').addEventListener('submit', async (e) => {
   const intake = {};
   for (const [k, v] of new FormData(e.target).entries()) if (typeof v === 'string' && v.trim()) intake[k] = v.trim();
 
+  const restorePreviews = releasePreviews();
+
   try {
     const perView = Math.min(18, Math.max(6, Math.floor(FRAME_BUDGET / picked.length)));
     const clips = [];
@@ -1348,10 +1394,12 @@ $('#form').addEventListener('submit', async (e) => {
       log(`${clip.view}: ${clip.frames.length} frames in ${clip.sampling.bursts} burst(s) from ${clip.meta.duration.toFixed(1)}s${clip.sampling.motionGuided ? ', placed on the most active passages' : ''}.`);
       clips.push(clip);
     }
+    restorePreviews();
     const result = await analyse(clips, intake);
     renderReport(result);
   } catch (err) {
-    fail(err.message ?? String(err));
+    restorePreviews();
+    fail(err.message ?? String(err), err.detail);
   } finally {
     running = false;
     await releaseLock();
