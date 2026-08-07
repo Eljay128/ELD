@@ -26,8 +26,17 @@ function sliceRenderer(source) {
   return source.slice(from, to).trim();
 }
 
+/** The page must stay one file, so the webfont is inlined rather than fetched. */
+async function inlineFonts(css) {
+  const font = await readFile(join(root, 'public/fonts/outfit-variable.woff2'));
+  return css.replace(
+    "url('fonts/outfit-variable.woff2') format('woff2-variations')",
+    `url(data:font/woff2;base64,${font.toString('base64')}) format('woff2-variations')`,
+  );
+}
+
 const [css, appJs, shell, template, mp4, webcodecs] = await Promise.all([
-  read('public/styles.css'),
+  read('public/styles.css').then(inlineFonts),
   read('public/app.js'),
   read('standalone/shell.html'),
   read('standalone/app.template.js'),

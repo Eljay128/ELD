@@ -1,99 +1,126 @@
-/* Stride — clinical readout identity.
-   Cool, blue-biased neutrals (imaging-viewer world) with a petrol accent.
-   Severity semantics are deliberately separate from the accent hue so that
-   "needs attention" never reads as "branded". */
+/* Outfit — SIL Open Font License 1.1, vendored in public/fonts (licence
+   alongside it). A variable face, so light headings and heavier labels come
+   from one 32KB file. The standalone build inlines this as a data URI; the
+   served app fetches it normally. */
+@font-face {
+  font-family: 'Outfit Variable';
+  src: url('fonts/outfit-variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Stride — equestrian editorial identity.
+   Warm monochrome: white page, cream panels, near-black type and square black
+   buttons, with a single muted plum accent for links and focus. Severity
+   colours stay deliberately outside the palette so that "call your vet" can
+   never read as decoration.
+   Every value a restyle needs is in this block. */
 
 :root {
-  --ground: #e8ecee;
-  --panel: #f7f9fa;
-  --panel-2: #dfe5e8;
-  --ink: #10171c;
-  --ink-2: #47555e;
-  --ink-3: #6b7c84;
-  --line: #cfd8dd;
-  --line-strong: #b3c0c7;
+  --ground: #ffffff;
+  --panel: #faf6f2;
+  --panel-2: #efe8e2;
+  --ink: #141414;
+  --ink-2: #5c5c5c;
+  --ink-3: #6f6a64;
+  --line: #e4ddd6;
+  --line-strong: #c6bdb4;
 
-  --accent: #0b6a75;
+  --accent: #7a4a68;
   --accent-ink: #ffffff;
-  --accent-wash: #dcebed;
+  --accent-wash: #f4ecf1;
 
-  --critical: #b3261e;
-  --critical-bg: #fbecea;
-  --critical-line: #e3a79f;
-  --caution: #8a5a00;
-  --caution-bg: #fbf3e2;
-  --caution-line: #ddc186;
-  --good: #1f6b45;
+  --critical: #a32218;
+  --critical-bg: #fbeeec;
+  --critical-line: #e0b0aa;
+  --caution: #7a4e00;
+  --caution-bg: #fbf4e6;
+  --caution-line: #ddc78f;
+  --good: #1d5f3f;
 
-  --radius: 6px;
-  --shadow: 0 1px 1px rgba(16, 23, 28, 0.04), 0 4px 14px rgba(16, 23, 28, 0.05);
+  --radius: 2px;
+  --shadow: 0 1px 2px rgba(20, 16, 12, 0.03), 0 6px 20px rgba(20, 16, 12, 0.05);
 
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --geo: "Outfit Variable", "Avenir Next", Avenir, "Century Gothic",
+         system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sans: var(--geo);
 
   /* ---- theme surface: everything a restyle needs to touch -------------- */
-  --display: var(--sans);        /* headings and titles */
-  --label: var(--mono);          /* small uppercase eyebrows and chips */
-  --body: var(--sans);           /* running text */
+  --display: var(--geo);
+  --label: var(--geo);
+  --body: var(--geo);
 
-  --display-tracking: -0.015em;
-  --display-weight: 650;
-  --label-tracking: 0.1em;
-  --heading-case: none;
+  --display-tracking: -0.005em;
+  --display-weight: 300;
+  --display-weight-sm: 500;
+  --label-tracking: 0.14em;
   --label-transform: uppercase;
+  --heading-case: none;
 
-  --btn-radius: 4px;
-  --btn-weight: 600;
-  --btn-tracking: 0;
+  --btn-radius: 0px;
+  --btn-weight: 500;
+  --btn-tracking: 0.01em;
   --btn-transform: none;
-  --btn-font: var(--sans);
+  --btn-font: var(--geo);
+  --btn-fill: #000000;
+  --btn-fill-ink: #ffffff;
+  --btn-outline: #000000;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #0d1316;
-    --panel: #141c21;
-    --panel-2: #1d272d;
-    --ink: #e6edf0;
-    --ink-2: #a3b3bb;
-    --ink-3: #7d8f97;
-    --line: #253138;
-    --line-strong: #35454e;
+    --ground: #121110;
+    --panel: #1c1a18;
+    --panel-2: #2a2724;
+    --ink: #f2eee9;
+    --ink-2: #b6ada4;
+    --ink-3: #9a9188;
+    --line: #302c28;
+    --line-strong: #453f3a;
 
-    --accent: #4fbecb;
-    --accent-ink: #06181c;
-    --accent-wash: #102c31;
+    --accent: #d59cc0;
+    --accent-ink: #24101d;
+    --accent-wash: #2b1f27;
 
-    --critical: #ff9482;
-    --critical-bg: #2b1512;
-    --critical-line: #6d2f24;
-    --caution: #e3b45c;
-    --caution-bg: #2a2011;
-    --caution-line: #5f4a1f;
-    --good: #62c08e;
+    --critical: #ff9c8d;
+    --critical-bg: #2c1613;
+    --critical-line: #6b302a;
+    --caution: #e6bc70;
+    --caution-bg: #2a2213;
+    --caution-line: #5e4b23;
+    --good: #6cc294;
 
-    --shadow: 0 1px 1px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 20px rgba(0, 0, 0, 0.4);
+
+    /* A black button disappears on a dark ground, so it inverts. */
+    --btn-fill: #f2eee9;
+    --btn-fill-ink: #141414;
+    --btn-outline: #6d655d;
   }
 }
 
 /* The viewer's explicit toggle must win over the OS preference, both ways. */
 :root[data-theme='light'] {
-  --ground: #e8ecee; --panel: #f7f9fa; --panel-2: #dfe5e8;
-  --ink: #10171c; --ink-2: #47555e; --ink-3: #6b7c84;
-  --line: #cfd8dd; --line-strong: #b3c0c7;
-  --accent: #0b6a75; --accent-ink: #ffffff; --accent-wash: #dcebed;
-  --critical: #b3261e; --critical-bg: #fbecea; --critical-line: #e3a79f;
-  --caution: #8a5a00; --caution-bg: #fbf3e2; --caution-line: #ddc186;
-  --good: #1f6b45;
+  --ground: #ffffff; --panel: #faf6f2; --panel-2: #efe8e2;
+  --ink: #141414; --ink-2: #5c5c5c; --ink-3: #6f6a64;
+  --line: #e4ddd6; --line-strong: #c6bdb4;
+  --accent: #7a4a68; --accent-ink: #ffffff; --accent-wash: #f4ecf1;
+  --critical: #a32218; --critical-bg: #fbeeec; --critical-line: #e0b0aa;
+  --caution: #7a4e00; --caution-bg: #fbf4e6; --caution-line: #ddc78f;
+  --good: #1d5f3f;
+  --btn-fill: #000000; --btn-fill-ink: #ffffff; --btn-outline: #000000;
 }
 :root[data-theme='dark'] {
-  --ground: #0d1316; --panel: #141c21; --panel-2: #1d272d;
-  --ink: #e6edf0; --ink-2: #a3b3bb; --ink-3: #7d8f97;
-  --line: #253138; --line-strong: #35454e;
-  --accent: #4fbecb; --accent-ink: #06181c; --accent-wash: #102c31;
-  --critical: #ff9482; --critical-bg: #2b1512; --critical-line: #6d2f24;
-  --caution: #e3b45c; --caution-bg: #2a2011; --caution-line: #5f4a1f;
-  --good: #62c08e;
+  --ground: #121110; --panel: #1c1a18; --panel-2: #2a2724;
+  --ink: #f2eee9; --ink-2: #b6ada4; --ink-3: #9a9188;
+  --line: #302c28; --line-strong: #453f3a;
+  --accent: #d59cc0; --accent-ink: #24101d; --accent-wash: #2b1f27;
+  --critical: #ff9c8d; --critical-bg: #2c1613; --critical-line: #6b302a;
+  --caution: #e6bc70; --caution-bg: #2a2213; --caution-line: #5e4b23;
+  --good: #6cc294;
+  --btn-fill: #f2eee9; --btn-fill-ink: #141414; --btn-outline: #6d655d;
 }
 
 * { box-sizing: border-box; }
@@ -148,7 +175,7 @@ body {
   color: var(--critical);
   font-family: var(--label);
   font-size: 0.82rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.08em;
+  text-transform: uppercase; letter-spacing: var(--label-tracking);
 }
 .notice-danger ul { margin: 8px 0 0; padding-left: 18px; }
 
@@ -165,7 +192,7 @@ body {
   margin: 0 0 3px;
   font-family: var(--label);
   font-size: 0.74rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.11em;
+  text-transform: uppercase; letter-spacing: var(--label-tracking);
   color: var(--ink-3);
 }
 .card-sub { margin: 0 0 16px; color: var(--ink-2); font-size: 0.88rem; }
@@ -176,7 +203,7 @@ body {
   margin: 18px 0 7px;
   font-family: var(--label);
   font-size: 0.7rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.09em;
+  text-transform: uppercase; letter-spacing: var(--label-tracking);
   color: var(--ink-3);
 }
 
@@ -198,7 +225,7 @@ body {
 .dz-sub { margin: 0; color: var(--ink-3); font-family: var(--label); font-size: 0.76rem; }
 .dz-chosen video { width: 100%; max-height: 320px; border-radius: 4px; background: #000; display: block; }
 .dz-filename {
-  margin: 9px 0 4px; font-family: var(--mono); font-size: 0.78rem;
+  margin: 9px 0 4px; font-family: var(--label); font-size: 0.79rem;
   color: var(--ink-2); word-break: break-all;
 }
 .link-btn {
@@ -219,7 +246,7 @@ label {
   display: block;
   font-family: var(--label);
   font-size: 0.7rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.07em;
+  text-transform: uppercase; letter-spacing: var(--label-tracking);
   color: var(--ink-3);
 }
 label.full { margin-top: 13px; }
@@ -246,16 +273,18 @@ textarea { resize: vertical; }
   font-weight: var(--btn-weight);
   letter-spacing: var(--btn-tracking);
   text-transform: var(--btn-transform);
-  font-size: 0.93rem;
-  padding: 10px 20px;
+  font-size: 0.95rem;
+  padding: 14px 26px;
+  line-height: 1.2;
   border-radius: var(--btn-radius);
   cursor: pointer;
   border: 1px solid transparent;
 }
-.primary { background: var(--accent); color: var(--accent-ink); }
-.primary:hover:not(:disabled) { filter: brightness(1.12); }
-.primary:disabled { opacity: 0.4; cursor: not-allowed; }
-.secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.primary { background: var(--btn-fill); color: var(--btn-fill-ink); border-color: var(--btn-fill); }
+.primary::after { content: "\2192"; margin-left: 11px; }
+.primary:hover:not(:disabled) { opacity: 0.86; }
+.primary:disabled { opacity: 0.32; cursor: not-allowed; }
+.secondary { background: transparent; color: var(--ink); border-color: var(--btn-outline); border-width: 1.5px; }
 .secondary:hover { background: var(--panel-2); }
 .primary:focus-visible, .secondary:focus-visible, .link-btn:focus-visible, summary:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
@@ -305,8 +334,8 @@ textarea { resize: vertical; }
   margin: 0 0 20px; padding: 8px 0;
   list-style: none;
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
-  font-family: var(--mono); font-size: 0.73rem; letter-spacing: 0.02em;
-  color: var(--ink-3);
+  font-family: var(--label); font-size: 0.72rem; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 .meta-strip li { padding: 0 14px; border-left: 1px solid var(--line); }
@@ -348,7 +377,7 @@ textarea { resize: vertical; }
 
 .sec-title {
   font-family: var(--label); font-size: 0.7rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: var(--label-tracking); color: var(--ink-3);
 }
 .sec-summary { font-size: 0.95rem; line-height: 1.5; color: var(--ink); }
 .sec-body { padding: 16px 18px 18px; }
@@ -375,7 +404,7 @@ textarea { resize: vertical; }
 .limb-name { font-weight: 600; }
 .conf {
   font-family: var(--label); font-size: 0.66rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.07em;
+  text-transform: uppercase; letter-spacing: var(--label-tracking);
   border: 1px solid var(--line-strong); border-radius: 3px;
   padding: 2px 7px; margin-left: 8px; color: var(--ink-2); vertical-align: 1px;
 }
@@ -421,8 +450,8 @@ textarea { resize: vertical; }
 }
 .dx-title { flex: 1 1 220px; min-width: 0; }
 .dx-title h4 {
-  margin: 0; font-family: var(--display); font-size: 1.06rem;
-  font-weight: var(--display-weight); letter-spacing: var(--display-tracking);
+  margin: 0; font-family: var(--display); font-size: 1.08rem;
+  font-weight: var(--display-weight-sm); letter-spacing: var(--display-tracking);
   text-wrap: balance;
 }
 .dx-region {
@@ -433,7 +462,7 @@ textarea { resize: vertical; }
 .dx-like { text-align: right; flex: none; }
 .dx-like-label {
   font-family: var(--label); font-size: 0.65rem;
-  text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: var(--label-tracking); color: var(--ink-3);
 }
 .dx-like-val {
   font-family: var(--mono); font-weight: 700; font-size: 1.15rem;
@@ -534,7 +563,7 @@ textarea { resize: vertical; }
 .slot.dragging { border-color: var(--accent); background: var(--accent-wash); }
 .slot-head {
   font-family: var(--label); font-size: 0.7rem;
-  text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: var(--label-tracking); color: var(--ink-3);
 }
 .slot-tag {
   display: inline-block; background: var(--panel-2); color: var(--ink);
@@ -556,7 +585,7 @@ textarea { resize: vertical; }
 .slot-idle { font-family: var(--label); font-size: 0.76rem; color: var(--accent); }
 .slot-preview { width: 100%; border-radius: 3px; background: #000; display: block; }
 .slot-name {
-  font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3);
+  font-family: var(--label); font-size: 0.7rem; color: var(--ink-3);
   word-break: break-all; line-height: 1.4;
 }
 .slot-clear { align-self: flex-start; font-size: 0.78rem; }
@@ -565,7 +594,7 @@ textarea { resize: vertical; }
    so it must not reserve space when it has nothing to say. */
 .slot-status { margin: 0; font-size: 0.76rem; line-height: 1.45; color: var(--ink-3); }
 .slot-status:empty { display: none; }
-.slot-status.ok { color: var(--good); font-family: var(--mono); font-size: 0.7rem; }
+.slot-status.ok { color: var(--good); font-family: var(--label); font-size: 0.74rem; letter-spacing: 0.03em; }
 .slot-status.bad { color: var(--critical); }
 .probe-detail { margin-top: 6px; }
 .probe-detail summary { cursor: pointer; font-family: var(--label); font-size: 0.68rem; color: var(--ink-2); }
@@ -575,3 +604,12 @@ textarea { resize: vertical; }
   border-radius: 4px; font-size: 0.64rem; line-height: 1.5;
   color: var(--ink-2); white-space: pre-wrap; word-break: break-word;
 }
+
+
+/* ---- phone: buttons go full width and stack, as on the reference design -- */
+@media (max-width: 560px) {
+  .submit-row { flex-direction: column; align-items: stretch; }
+  .submit-row .primary, .submit-row .secondary { width: 100%; justify-content: center; }
+  .submit-note { text-align: center; }
+}
+.primary, .secondary { display: inline-flex; align-items: center; justify-content: center; }
