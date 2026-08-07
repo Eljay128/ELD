@@ -299,62 +299,43 @@ textarea { resize: vertical; }
 }
 .working-note { color: var(--ink-2); max-width: 48ch; margin: 7px auto 24px; font-size: 0.9rem; }
 /* ---- the trotting horse ------------------------------------------------ */
-/* A spinner says "something is happening"; this says what. The gait is a real
-   trot: diagonal pairs move together and half a cycle apart, over a 0.68s
-   stride — the same period the sampler assumes when it sizes a burst. */
+/* Traced from a reference silhouette, then cut into a body and four legs so
+   each leg can swing about its own shoulder or hip. The source pose is already
+   an extended trot, so the diagonal pairs are inherent in it: the foreleg
+   reaching forward belongs with the hind swinging through under the barrel, and
+   the trailing foreleg with the hind extended behind. Those two pairs run half a
+   cycle apart over 0.68s — the stride period the sampler assumes. */
 .trotter {
   display: block;
-  width: 108px; height: auto;
-  margin: 0 auto 12px;
+  width: 122px; height: auto;
+  margin: 0 auto 14px;
   color: var(--accent);
   overflow: visible;
 }
-.trotter .hide, .trotter .tail { fill: currentColor; }
-.trotter .leg path { stroke: currentColor; stroke-width: 5.5; stroke-linecap: round; fill: none; }
-.trotter .leg .lower path { stroke-width: 4.5; }
-.trotter .ground { stroke: var(--line-strong); stroke-width: 1.5; stroke-linecap: round; }
+.trotter .hide, .trotter .leg path { fill: currentColor; }
+/* Body and near legs are the same colour and merely abut, so anti-aliasing
+   leaves a hairline seam at the joint. A hairline stroke closes it. */
+.trotter .hide, .trotter .phase-a path { stroke: currentColor; stroke-width: 0.6; }
 
-.trotter .leg, .trotter .leg .lower, .trotter-body { animation: none; }
+/* The far pair is dimmed so that when legs cross they read as depth rather
+   than merging into one blob. */
+.trotter .phase-b path { opacity: 0.5; }
 
-@keyframes trot-upper {
-  0%   { transform: rotate(24deg); }
-  25%  { transform: rotate(-6deg); }
-  50%  { transform: rotate(-26deg); }
-  75%  { transform: rotate(-2deg); }
-  100% { transform: rotate(24deg); }
-}
-/* The knee folds through the swing and straightens to land, which is what makes
-   it read as a trot rather than four sticks waving. */
-@keyframes trot-lower {
-  0%   { transform: rotate(-4deg); }
-  25%  { transform: rotate(-34deg); }
-  50%  { transform: rotate(-22deg); }
-  75%  { transform: rotate(-2deg); }
-  100% { transform: rotate(-4deg); }
-}
+@keyframes trot-fore { 0%, 100% { transform: rotate(11deg); } 50% { transform: rotate(-11deg); } }
+@keyframes trot-hind { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(9deg); } }
 /* Two beats per stride: the body rises as each diagonal pair pushes off. */
-@keyframes trot-bob {
-  0%, 50%, 100% { transform: translateY(0); }
-  25%, 75%      { transform: translateY(-2.4px); }
-}
+@keyframes trot-bob { 0%, 50%, 100% { transform: translateY(0); } 25%, 75% { transform: translateY(-2px); } }
 
 .trotter-body { animation: trot-bob 0.68s ease-in-out infinite; }
-.trotter .leg { animation: trot-upper 0.68s ease-in-out infinite; }
-.trotter .leg .lower { animation: trot-lower 0.68s ease-in-out infinite; }
-
-/* Diagonal pairs: near fore with off hind, and the reverse, half a cycle apart. */
-.trotter .leg-fore.leg-a, .trotter .leg-rear.leg-b { animation-delay: 0s; }
-.trotter .leg-fore.leg-b, .trotter .leg-rear.leg-a { animation-delay: -0.34s; }
-.trotter .leg-fore.leg-a .lower, .trotter .leg-rear.leg-b .lower { animation-delay: 0s; }
-.trotter .leg-fore.leg-b .lower, .trotter .leg-rear.leg-a .lower { animation-delay: -0.34s; }
-
-/* The off-side pair sits behind the barrel, so it reads as depth not clutter. */
-.trotter .leg-b path { opacity: 0.45; }
+.trotter .leg.fore { animation: trot-fore 0.68s ease-in-out infinite; }
+.trotter .leg.hind { animation: trot-hind 0.68s ease-in-out infinite; }
+.trotter .phase-b { animation-delay: -0.34s; }
 
 /* Motion is the whole point here, so when it is unwelcome the horse simply
    stands still rather than being replaced by something meaningless. */
 @media (prefers-reduced-motion: reduce) {
-  .trotter-body, .trotter .leg, .trotter .leg .lower { animation: none; }
+  /* Must match the specificity of .trotter .leg.fore above, or it loses. */
+  .trotter-body, .trotter .leg.fore, .trotter .leg.hind { animation: none; }
 }
 
 .log { list-style: none; margin: 0 auto; padding: 0; text-align: left; max-width: 440px; }
