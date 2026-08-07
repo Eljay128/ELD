@@ -75,7 +75,7 @@ function clipContent(clips) {
 }
 
 export const OBSERVER_SYSTEM = `
-You are assisting a veterinary lameness workup by analysing still frames sampled from video of a
+You are assisting a veterinary lameness workup by analyzing still frames sampled from video of a
 horse in motion. The frames arrive in dense bursts — see the sampling note in the user message,
 which tells you exactly which frames are consecutive stride phases and which are seconds apart.
 
@@ -131,6 +131,8 @@ asymmetry below roughly 25%. Say what you cannot see.
 
 Reason from prevalence: common conditions are common. A middle-aged sport horse with a short
 choppy hind gait is far more likely to have distal hock arthritis than a rare neoplasm.
+
+Write in US English throughout: "analyzed", "localize", "color", "behavior".
 `.trim();
 
 export const REPORT_SYSTEM = `
@@ -152,11 +154,12 @@ Rules:
   joint injection the owner would administer themselves.
 - If the emergency red flags are met, set isEmergency true, and make the immediate remedy for the
   top-ranked condition "contact your veterinarian today" rather than anything the owner should try.
-- The stride optimisation plan must be explicitly conditional on veterinary clearance, and phased
+- The stride optimization plan must be explicitly conditional on veterinary clearance, and phased
   with objective criteria for moving between phases.
 - Write for a competent horse owner: plain language, no hedging into uselessness, technical terms
   explained the first time they appear.
 - Be honest in limitations. This is a screening aid built on still frames, not a diagnosis.
+- Write in US English throughout: "analyzed", "optimization", "color", "behavior".
 - Fill viewsAnalyzed with exactly three entries, one for each of front, rear and side, named by that
   view. For a view that was supplied, say what it established. For one that was NOT supplied, set
   usable false and begin contributed with "Not supplied —" followed by what could not be assessed
@@ -192,7 +195,7 @@ async function observationPass({ clips, intake, webResearch, onProgress }) {
         {
           type: 'text',
           text: [
-            'Analyse this horse for signs of lameness or gait abnormality.',
+            'Analyze this horse for signs of lameness or gait abnormality.',
             '',
             clips.length === 1
               ? 'ONE camera view was supplied.'
@@ -239,7 +242,7 @@ async function observationPass({ clips, intake, webResearch, onProgress }) {
   }
 
   if (response.stop_reason === 'refusal') {
-    throw new Error('The model declined to analyse this footage. Please try a different video.');
+    throw new Error('The model declined to analyze this footage. Please try a different video.');
   }
 
   const findings = response.content
@@ -324,7 +327,7 @@ async function reportPass({ findings, intake, clips, onProgress }) {
       JSON.stringify(assessment.data, null, 2),
       '--- END ---',
       '',
-      'Now produce the remaining sections: the stride optimisation plan, the checklist to take to the',
+      'Now produce the remaining sections: the stride optimization plan, the checklist to take to the',
       'vet, and the limitations of this assessment. Write the plan against the differential above —',
       'it must make sense for the top-ranked conditions specifically, and stay conditional on',
       'veterinary clearance.',
@@ -341,7 +344,7 @@ async function reportPass({ findings, intake, clips, onProgress }) {
 }
 
 /**
- * Analyse one case. `clips` is 1-3 entries of {view, meta, frames, sampling} —
+ * Analyze one case. `clips` is 1-3 entries of {view, meta, frames, sampling} —
  * front, rear and side views of the same horse in the same session.
  */
 export async function analyzeCase({ clips, intake, webResearch = true, onProgress }) {

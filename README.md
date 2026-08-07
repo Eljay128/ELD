@@ -269,7 +269,7 @@ than something exotic.
 
 ---
 
-## Getting a clip that's worth analysing
+## Getting a clip that's worth analyzing
 
 The quality of the answer is mostly set by the quality of the footage.
 

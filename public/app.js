@@ -263,7 +263,7 @@ function renderReport({ report, observation, sources, meta }) {
   const strip = el('ul', 'meta-strip');
   for (const item of [
     meta.views?.length ? `${meta.views.join(' + ')} view${meta.views.length > 1 ? 's' : ''}` : 'single view',
-    `${meta.frameCount} frames analysed`,
+    `${meta.frameCount} frames analyzed`,
     `${meta.videoDuration.toFixed(1)}s of footage`,
     meta.webResearch ? 'Web research: on' : 'Web research: off',
     new Date(meta.generatedAt).toLocaleString(),

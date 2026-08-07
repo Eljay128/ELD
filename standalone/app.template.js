@@ -703,7 +703,7 @@ async function callClaude(body, onText) {
   return { content: blocks.filter(Boolean), stopReason, usage };
 }
 
-async function analyse(clips, intake) {
+async function analyze(clips, intake) {
   const knowledge = CONFIG.knowledge;
 
   const clipBlocks = [];
@@ -735,7 +735,7 @@ async function analyse(clips, intake) {
     role: 'user',
     content: [
       { type: 'text', text: [
-        'Analyse this horse for signs of lameness or gait abnormality.', '',
+        'Analyze this horse for signs of lameness or gait abnormality.', '',
         clips.length === 1 ? 'ONE camera view was supplied.'
           : `${clips.length} camera views of the SAME horse in the same session were supplied: ${clips.map((c) => c.view).join(', ')}.`,
         '', 'Owner-supplied background:', background,
@@ -798,7 +798,7 @@ async function analyse(clips, intake) {
   const plan = await structured(CONFIG.planSchema, [
     context, '',
     '--- ASSESSMENT ALREADY PRODUCED ---', JSON.stringify(assessment, null, 2), '--- END ---', '',
-    'Now produce the remaining sections: the stride optimisation plan, the checklist to take to the',
+    'Now produce the remaining sections: the stride optimization plan, the checklist to take to the',
     'vet, and the limitations of this assessment. Write the plan against the differential above —',
     'it must make sense for the top-ranked conditions specifically, and stay conditional on',
     'veterinary clearance.',
@@ -899,7 +899,7 @@ $('#form').addEventListener('submit', async (e) => {
       clips.push(clip);
     }
     restorePreviews();
-    const result = await analyse(clips, intake);
+    const result = await analyze(clips, intake);
     renderReport(result);
   } catch (err) {
     restorePreviews();
