@@ -221,7 +221,39 @@
         <!-- --------------------------------------------------------- WORKING -->
         <section id="view-working" hidden>
           <div class="card working">
-            <div class="spinner" aria-hidden="true"></div>
+            <svg class="trotter" viewBox="0 0 120 96" role="img" aria-label="Analyzing">
+              <g class="trotter-body">
+                <!-- Off-side pair, drawn behind the barrel so it reads as depth. -->
+                <g class="leg leg-rear leg-b" style="transform-origin: 33px 48px">
+                  <path d="M33 48 L30 69" />
+                  <g class="lower" style="transform-origin: 30px 69px"><path d="M30 69 L32 90" /></g>
+                </g>
+                <g class="leg leg-fore leg-b" style="transform-origin: 65px 47px">
+                  <path d="M65 47 L63 68" />
+                  <g class="lower" style="transform-origin: 63px 68px"><path d="M63 68 L64 90" /></g>
+                </g>
+
+                <path class="tail" d="M31 32 C24 34 18 41 15 50 C13 55 13 60 15 64
+                  C16 56 19 49 24 44 C27 41 30 38 32 36 Z" />
+                <path class="hide" d="M70 48 C71 42 74 35 79 29 C82 25 86 22 90 20
+                  C93 19 96 20 98 23 L104 31 C106 34 105 37 102 37 C98 37 94 35 91 32
+                  C87 31 82 34 77 40 C74 44 72 47 70 51 C63 57 48 58 38 56
+                  C31 55 27 50 27 44 C27 37 32 31 40 29 C52 27 64 28 70 31
+                  C72 35 71 42 70 48 Z" />
+                <path class="hide" d="M90 20 L91 14 L94 19 Z M95 21 L98 16 L99 22 Z" />
+
+                <!-- Near-side pair in front, half a stride out of phase. -->
+                <g class="leg leg-rear leg-a" style="transform-origin: 37px 49px">
+                  <path d="M37 49 L34 70" />
+                  <g class="lower" style="transform-origin: 34px 70px"><path d="M34 70 L36 91" /></g>
+                </g>
+                <g class="leg leg-fore leg-a" style="transform-origin: 69px 48px">
+                  <path d="M69 48 L67 69" />
+                  <g class="lower" style="transform-origin: 67px 69px"><path d="M67 69 L68 91" /></g>
+                </g>
+              </g>
+              <line class="ground" x1="10" y1="93" x2="110" y2="93" />
+            </svg>
             <h2>Analyzing</h2>
             <p class="working-note">
               This usually takes five to twelve minutes. The gait pass reads every frame and the

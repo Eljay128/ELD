@@ -308,18 +308,69 @@ textarea { resize: vertical; }
   text-transform: none; letter-spacing: -0.01em; color: var(--ink);
 }
 .working-note { color: var(--ink-2); max-width: 48ch; margin: 7px auto 24px; font-size: 0.9rem; }
-.spinner {
-  width: 30px; height: 30px; margin: 0 auto 14px;
-  border: 2px solid var(--line-strong); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin 0.9s linear infinite;
+/* ---- the trotting horse ------------------------------------------------ */
+/* A spinner says "something is happening"; this says what. The gait is a real
+   trot: diagonal pairs move together and half a cycle apart, over a 0.68s
+   stride — the same period the sampler assumes when it sizes a burst. */
+.trotter {
+  display: block;
+  width: 108px; height: auto;
+  margin: 0 auto 12px;
+  color: var(--accent);
+  overflow: visible;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.trotter .hide, .trotter .tail { fill: currentColor; }
+.trotter .leg path { stroke: currentColor; stroke-width: 5.5; stroke-linecap: round; fill: none; }
+.trotter .leg .lower path { stroke-width: 4.5; }
+.trotter .ground { stroke: var(--line-strong); stroke-width: 1.5; stroke-linecap: round; }
+
+.trotter .leg, .trotter .leg .lower, .trotter-body { animation: none; }
+
+@keyframes trot-upper {
+  0%   { transform: rotate(24deg); }
+  25%  { transform: rotate(-6deg); }
+  50%  { transform: rotate(-26deg); }
+  75%  { transform: rotate(-2deg); }
+  100% { transform: rotate(24deg); }
+}
+/* The knee folds through the swing and straightens to land, which is what makes
+   it read as a trot rather than four sticks waving. */
+@keyframes trot-lower {
+  0%   { transform: rotate(-4deg); }
+  25%  { transform: rotate(-34deg); }
+  50%  { transform: rotate(-22deg); }
+  75%  { transform: rotate(-2deg); }
+  100% { transform: rotate(-4deg); }
+}
+/* Two beats per stride: the body rises as each diagonal pair pushes off. */
+@keyframes trot-bob {
+  0%, 50%, 100% { transform: translateY(0); }
+  25%, 75%      { transform: translateY(-2.4px); }
+}
+
+.trotter-body { animation: trot-bob 0.68s ease-in-out infinite; }
+.trotter .leg { animation: trot-upper 0.68s ease-in-out infinite; }
+.trotter .leg .lower { animation: trot-lower 0.68s ease-in-out infinite; }
+
+/* Diagonal pairs: near fore with off hind, and the reverse, half a cycle apart. */
+.trotter .leg-fore.leg-a, .trotter .leg-rear.leg-b { animation-delay: 0s; }
+.trotter .leg-fore.leg-b, .trotter .leg-rear.leg-a { animation-delay: -0.34s; }
+.trotter .leg-fore.leg-a .lower, .trotter .leg-rear.leg-b .lower { animation-delay: 0s; }
+.trotter .leg-fore.leg-b .lower, .trotter .leg-rear.leg-a .lower { animation-delay: -0.34s; }
+
+/* The off-side pair sits behind the barrel, so it reads as depth not clutter. */
+.trotter .leg-b path { opacity: 0.45; }
+
+/* Motion is the whole point here, so when it is unwelcome the horse simply
+   stands still rather than being replaced by something meaningless. */
+@media (prefers-reduced-motion: reduce) {
+  .trotter-body, .trotter .leg, .trotter .leg .lower { animation: none; }
+}
 
 .log { list-style: none; margin: 0 auto; padding: 0; text-align: left; max-width: 440px; }
 .log li {
   padding: 7px 0 7px 22px; position: relative;
-  color: var(--ink-3); font-family: var(--mono); font-size: 0.79rem;
+  color: var(--ink-3); font-family: var(--label); font-size: 0.82rem;
   border-top: 1px solid var(--line);
 }
 .log li:first-child { border-top: none; }
@@ -404,8 +455,8 @@ textarea { resize: vertical; }
 .grade-badge {
   background: var(--accent); color: var(--accent-ink);
   border-radius: 4px; padding: 5px 12px;
-  font-family: var(--mono); font-size: 0.86rem; font-weight: 700;
-  letter-spacing: 0.04em; font-variant-numeric: tabular-nums;
+  font-family: var(--label); font-size: 0.86rem; font-weight: 600;
+  letter-spacing: 0.06em; font-variant-numeric: tabular-nums;
 }
 .grade-scale { color: var(--ink-3); font-family: var(--label); font-size: 0.76rem; }
 
@@ -453,7 +504,7 @@ textarea { resize: vertical; }
   flex: none; width: 24px; height: 24px; border-radius: 3px;
   background: var(--panel-2); border: 1px solid var(--line-strong);
   display: grid; place-items: center;
-  font-family: var(--mono); font-weight: 700; font-size: 0.78rem;
+  font-family: var(--label); font-weight: 600; font-size: 0.8rem;
 }
 .dx[data-likelihood="most likely"] .dx-rank {
   background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
@@ -475,7 +526,7 @@ textarea { resize: vertical; }
   text-transform: uppercase; letter-spacing: var(--label-tracking); color: var(--ink-3);
 }
 .dx-like-val {
-  font-family: var(--mono); font-weight: 700; font-size: 1.15rem;
+  font-family: var(--label); font-weight: 700; font-size: 1.18rem;
   font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
 }
 
@@ -825,7 +876,39 @@ textarea { resize: vertical; }
         <!-- --------------------------------------------------------- WORKING -->
         <section id="view-working" hidden>
           <div class="card working">
-            <div class="spinner" aria-hidden="true"></div>
+            <svg class="trotter" viewBox="0 0 120 96" role="img" aria-label="Analyzing">
+              <g class="trotter-body">
+                <!-- Off-side pair, drawn behind the barrel so it reads as depth. -->
+                <g class="leg leg-rear leg-b" style="transform-origin: 33px 48px">
+                  <path d="M33 48 L30 69" />
+                  <g class="lower" style="transform-origin: 30px 69px"><path d="M30 69 L32 90" /></g>
+                </g>
+                <g class="leg leg-fore leg-b" style="transform-origin: 65px 47px">
+                  <path d="M65 47 L63 68" />
+                  <g class="lower" style="transform-origin: 63px 68px"><path d="M63 68 L64 90" /></g>
+                </g>
+
+                <path class="tail" d="M31 32 C24 34 18 41 15 50 C13 55 13 60 15 64
+                  C16 56 19 49 24 44 C27 41 30 38 32 36 Z" />
+                <path class="hide" d="M70 48 C71 42 74 35 79 29 C82 25 86 22 90 20
+                  C93 19 96 20 98 23 L104 31 C106 34 105 37 102 37 C98 37 94 35 91 32
+                  C87 31 82 34 77 40 C74 44 72 47 70 51 C63 57 48 58 38 56
+                  C31 55 27 50 27 44 C27 37 32 31 40 29 C52 27 64 28 70 31
+                  C72 35 71 42 70 48 Z" />
+                <path class="hide" d="M90 20 L91 14 L94 19 Z M95 21 L98 16 L99 22 Z" />
+
+                <!-- Near-side pair in front, half a stride out of phase. -->
+                <g class="leg leg-rear leg-a" style="transform-origin: 37px 49px">
+                  <path d="M37 49 L34 70" />
+                  <g class="lower" style="transform-origin: 34px 70px"><path d="M34 70 L36 91" /></g>
+                </g>
+                <g class="leg leg-fore leg-a" style="transform-origin: 69px 48px">
+                  <path d="M69 48 L67 69" />
+                  <g class="lower" style="transform-origin: 67px 69px"><path d="M67 69 L68 91" /></g>
+                </g>
+              </g>
+              <line class="ground" x1="10" y1="93" x2="110" y2="93" />
+            </svg>
             <h2>Analyzing</h2>
             <p class="working-note">
               This usually takes eight to twelve minutes. Frames are captured here in your browser, then the
