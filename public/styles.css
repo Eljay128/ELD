@@ -298,6 +298,68 @@ textarea { resize: vertical; }
   text-transform: none; letter-spacing: -0.01em; color: var(--ink);
 }
 .working-note { color: var(--ink-2); max-width: 48ch; margin: 7px auto 24px; font-size: 0.9rem; }
+/* ---- limb loading chart ------------------------------------------------ */
+/* Bars are the model's visual estimate, so an unassessable limb is drawn as an
+   empty hatched track. Showing it at full length would read as "normal", which
+   is the one thing it must never say. */
+.limb-chart { margin: 18px 0 4px; }
+.limb-chart > .card-sub { margin-bottom: 14px; }
+
+.limb-pair-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin: 14px 0 8px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+.limb-pair-name {
+  font-family: var(--label); font-size: 0.7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: var(--label-tracking); color: var(--ink-3);
+}
+.limb-gap { font-size: 0.78rem; color: var(--ink-3); }
+.limb-gap.notable { color: var(--critical); font-weight: 600; }
+.limb-gap.muted { opacity: 0.7; font-style: italic; }
+
+.limb-row {
+  display: grid;
+  grid-template-columns: 5.6rem 1fr 6.2rem;
+  align-items: center; gap: 10px;
+  margin-bottom: 7px;
+}
+.limb-label { font-size: 0.86rem; color: var(--ink); }
+.limb-track {
+  height: 9px; border-radius: 1px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.limb-fill { display: block; height: 100%; background: var(--accent); }
+.limb-value {
+  font-size: 0.8rem; color: var(--ink-2); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.limb-note {
+  grid-column: 1 / -1; margin: 1px 0 6px;
+  font-size: 0.78rem; line-height: 1.45; color: var(--ink-3);
+}
+
+/* The implicated limb is the point of the chart, so it carries the colour. */
+.limb-row.flagged .limb-fill { background: var(--critical); }
+.limb-row.flagged .limb-label { color: var(--critical); font-weight: 600; }
+.limb-row.flagged .limb-value { color: var(--critical); font-weight: 600; }
+
+/* Not assessed is not the same as normal, and must not look like it. */
+.limb-row.unknown .limb-track {
+  background: repeating-linear-gradient(
+    -45deg, var(--panel-2) 0 4px, transparent 4px 8px
+  );
+  border: 1px solid var(--line);
+}
+.limb-row.unknown .limb-label { color: var(--ink-3); }
+.limb-row.unknown .limb-value { font-size: 0.68rem; font-style: italic; color: var(--ink-3); }
+
+@media (max-width: 560px) {
+  .limb-row { grid-template-columns: 4.6rem 1fr 5.4rem; gap: 8px; }
+  .limb-label, .limb-value { font-size: 0.78rem; }
+}
+
 /* ---- the trotting horse ------------------------------------------------ */
 /* Traced from a reference silhouette, then cut into a body and four legs so
    each leg can swing about its own shoulder or hip. The source pose is already

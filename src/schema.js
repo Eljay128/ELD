@@ -89,6 +89,7 @@ const PROPERTIES = {
       'aaepGrade',
       'aaepGradeRationale',
       'affectedLimbs',
+      'limbLoading',
       'keyObservations',
       'compensatoryPattern',
     ],
@@ -133,6 +134,38 @@ const PROPERTIES = {
               type: 'string',
               description:
                 'The specific visual evidence, citing frame timestamps and the laterality rule applied (head nod direction, hip hike side, stride length).',
+            },
+          },
+        },
+      },
+      limbLoading: {
+        type: 'array',
+        description:
+          'Exactly four entries, in the order left fore, right fore, left hind, right hind. This drives ' +
+          'the limb chart, so it must be filled for every limb even when the answer is "could not tell".',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['limb', 'assessable', 'loading', 'note'],
+          properties: {
+            limb: { type: 'string', enum: ['left fore', 'right fore', 'left hind', 'right hind'] },
+            assessable: {
+              type: 'boolean',
+              description:
+                'False when the views supplied cannot show this limb loading — for example any hind limb ' +
+                'with no rear view. Never guess a number in place of admitting this.',
+            },
+            loading: {
+              type: 'integer',
+              description:
+                'Coarse visual estimate of how normally this limb loads, 0-100, where 100 is a limb that ' +
+                'lands and bears weight normally and lower means it is spared. This is an eyeball estimate ' +
+                'from still frames, not a measurement. Use 100 when the limb looks normal, and when a limb ' +
+                'is not assessable.',
+            },
+            note: {
+              type: 'string',
+              description: 'A few words on what was seen, or why this limb could not be judged.',
             },
           },
         },

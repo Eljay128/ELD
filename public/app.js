@@ -389,6 +389,75 @@ function renderVideoQuality(q) {
   return box;
 }
 
+/**
+ * Limb loading chart.
+ *
+ * This is the model's eyeball estimate from still frames, not a measurement —
+ * there is no force plate and no contact timing here. So the chart shows what
+ * was actually judged, marks limbs the supplied views could not show rather
+ * than drawing them as normal, and states in one line what it is.
+ */
+const LIMB_ORDER = ['left fore', 'right fore', 'left hind', 'right hind'];
+
+/** Which limbs the assessment actually implicated, expanded from its shorthand. */
+function flaggedLimbs(affectedLimbs) {
+  const out = new Set();
+  for (const entry of affectedLimbs ?? []) {
+    const l = String(entry.limb ?? '').toLowerCase();
+    if (l === 'both fore') { out.add('left fore'); out.add('right fore'); }
+    else if (l === 'both hind') { out.add('left hind'); out.add('right hind'); }
+    else if (LIMB_ORDER.includes(l)) out.add(l);
+    // "multiple limbs" and "undetermined" name nothing, so they highlight nothing.
+  }
+  return out;
+}
+
+function renderLimbChart(limbLoading, affectedLimbs) {
+  const rows = LIMB_ORDER
+    .map((name) => (limbLoading ?? []).find((e) => String(e.limb).toLowerCase() === name))
+    .filter(Boolean);
+  if (rows.length < 4) return null;
+
+  const flagged = flaggedLimbs(affectedLimbs);
+  const box = el('div', 'limb-chart');
+  box.append(el('p', 'card-sub', 'How normally each limb appears to load — the model\'s estimate by eye from still frames, not a measurement. A sound horse sits near 100 on all four; gaps under about 10 points are noise.'));
+
+  for (const [pair, label] of [['fore', 'Forelimbs'], ['hind', 'Hind limbs']]) {
+    const inPair = rows.filter((r) => r.limb.endsWith(pair));
+    const head = el('div', 'limb-pair-head');
+    head.append(el('span', 'limb-pair-name', label));
+
+    // The clinical signal is the left-right difference, so state it when both
+    // sides could actually be judged.
+    const [a, b] = inPair;
+    if (a?.assessable && b?.assessable) {
+      const gap = Math.abs(a.loading - b.loading);
+      head.append(el('span', `limb-gap${gap >= 10 ? ' notable' : ''}`,
+        gap >= 10 ? `${gap} point difference` : 'even'));
+    } else {
+      head.append(el('span', 'limb-gap muted', 'not comparable'));
+    }
+    box.append(head);
+
+    for (const r of inPair) {
+      const row = el('div', `limb-row${flagged.has(r.limb) ? ' flagged' : ''}${r.assessable ? '' : ' unknown'}`);
+      row.append(el('span', 'limb-label', r.limb));
+
+      const track = el('div', 'limb-track');
+      if (r.assessable) {
+        const fill = el('span', 'limb-fill');
+        fill.style.width = `${Math.max(0, Math.min(100, r.loading))}%`;
+        track.append(fill);
+      }
+      row.append(track);
+      row.append(el('span', 'limb-value', r.assessable ? String(r.loading) : 'not assessable'));
+      if (r.note) row.append(el('p', 'limb-note', r.note));
+      box.append(row);
+    }
+  }
+  return box;
+}
+
 function renderGait(g) {
   const box = el('div');
 
@@ -405,6 +474,9 @@ function renderGait(g) {
   }
   box.append(row);
   box.append(el('p', null, g.aaepGradeRationale));
+
+  const chart = renderLimbChart(g.limbLoading, g.affectedLimbs);
+  if (chart) box.append(chart);
 
   if (g.affectedLimbs?.length) {
     box.append(el('h5', null, 'Limbs implicated'));

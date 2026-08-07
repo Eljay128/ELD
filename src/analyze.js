@@ -160,6 +160,13 @@ Rules:
   explained the first time they appear.
 - Be honest in limitations. This is a screening aid built on still frames, not a diagnosis.
 - Write in US English throughout: "analyzed", "optimization", "color", "behavior".
+- limbLoading drives a chart, so fill all four limbs every time, in the order left fore, right fore,
+  left hind, right hind. "loading" is a coarse eyeball estimate of how normally each limb loads:
+  100 for a limb that lands and bears weight normally, lower for one being spared. You are reading
+  still frames, so do not imply precision you do not have — a sound horse should come out at or near
+  100 on all four, and differences below about 10 points are noise, not findings. If the views
+  supplied cannot show a limb loading — any hind limb without a rear view, for instance — set
+  assessable false and say why in the note. Never invent a number in place of admitting that.
 - Fill viewsAnalyzed with exactly three entries, one for each of front, rear and side, named by that
   view. For a view that was supplied, say what it established. For one that was NOT supplied, set
   usable false and begin contributed with "Not supplied —" followed by what could not be assessed
