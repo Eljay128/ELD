@@ -33,12 +33,14 @@
     </header>
 
     <div class="wrap">
-      <div class="notice notice-warn" role="note">
-        <strong>This is a screening aid, not a diagnosis.</strong> It reads still frames from your video
+      <template id="screening-notice">
+        <div class="notice notice-warn" role="note">
+          <strong>This is a screening aid, not a diagnosis.</strong> It reads still frames from your video
         and cannot palpate, feel a digital pulse, use hoof testers, flex a joint or run a nerve block —
         the things that actually confirm a lameness. Use it to know what to look at and what to ask.
         Anything painful, sudden or worsening needs a veterinarian.
-      </div>
+        </div>
+      </template>
 
       <main id="stage">
         <!-- ---------------------------------------------------------- UPLOAD -->
@@ -207,6 +209,8 @@
               </label>
             </div>
 
+            <div data-notice></div>
+
             <div class="submit-row">
               <button type="submit" id="submit" class="primary" disabled>Analyze gait</button>
               <p class="submit-note" id="submit-note">Add at least one video to begin.</p>
@@ -230,6 +234,7 @@
         <!-- ---------------------------------------------------------- REPORT -->
         <section id="view-report" hidden>
           <div id="report"></div>
+          <div data-notice></div>
           <div class="submit-row">
             <button type="button" class="primary" id="restart">Analyze another video</button>
             <button type="button" class="secondary" id="print">Save / print report</button>

@@ -60,6 +60,13 @@ function log(msg) {
   $('#log').lastChild.scrollIntoView({ block: 'nearest' });
 }
 
+/* The screening notice lives in one <template> and is cloned into each mount
+   point, so the copy above the analyze button and the copy below the report can
+   never drift apart. */
+for (const mount of document.querySelectorAll('[data-notice]')) {
+  mount.replaceWith(document.querySelector('#screening-notice').content.cloneNode(true));
+}
+
 /* ------------------------------------------------------------------ api key */
 // sessionStorage, not localStorage: the key is gone when the tab closes.
 let apiKey = sessionStorage.getItem('stride-key') || '';

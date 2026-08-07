@@ -647,12 +647,14 @@ textarea { resize: vertical; }
     </header>
 
     <div class="wrap">
-      <div class="notice notice-warn" role="note">
-        <strong>This is a screening aid, not a diagnosis.</strong> It reads still frames from your video
+      <template id="screening-notice">
+        <div class="notice notice-warn" role="note">
+          <strong>This is a screening aid, not a diagnosis.</strong> It reads still frames from your video
         and cannot palpate, feel a digital pulse, use hoof testers, flex a joint or run a nerve block —
         the things that actually confirm a lameness. Use it to know what to look at and what to ask.
         Anything painful, sudden or worsening needs a veterinarian.
-      </div>
+        </div>
+      </template>
 
       <main>
         <!-- ------------------------------------------------------------- KEY -->
@@ -810,6 +812,8 @@ textarea { resize: vertical; }
               </label>
             </div>
 
+            <div data-notice></div>
+
             <div class="submit-row">
               <button type="submit" id="submit" class="primary" disabled>Analyze gait</button>
               <p class="submit-note" id="submit-note">Add at least one video to begin.</p>
@@ -836,6 +840,7 @@ textarea { resize: vertical; }
         <!-- ---------------------------------------------------------- REPORT -->
         <section id="view-report" hidden>
           <div id="report"></div>
+          <div data-notice></div>
           <div class="submit-row">
             <button type="button" class="primary" id="restart">Analyze another case</button>
             <button type="button" class="secondary" id="print">Save / print report</button>
@@ -1284,6 +1289,13 @@ function decodeReport(video, file) {
 function log(msg) {
   $('#log').append(el('li', null, msg));
   $('#log').lastChild.scrollIntoView({ block: 'nearest' });
+}
+
+/* The screening notice lives in one <template> and is cloned into each mount
+   point, so the copy above the analyze button and the copy below the report can
+   never drift apart. */
+for (const mount of document.querySelectorAll('[data-notice]')) {
+  mount.replaceWith(document.querySelector('#screening-notice').content.cloneNode(true));
 }
 
 /* ------------------------------------------------------------------ api key */

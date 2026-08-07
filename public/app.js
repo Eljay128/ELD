@@ -31,6 +31,13 @@ const list = (items, className) => {
   return ul;
 };
 
+/* The screening notice lives in one <template> and is cloned into each mount
+   point, so the copy above the analyze button and the copy below the report can
+   never drift apart. */
+for (const mount of document.querySelectorAll('[data-notice]')) {
+  mount.replaceWith(document.querySelector('#screening-notice').content.cloneNode(true));
+}
+
 // ------------------------------------------------------------------ upload
 
 const submitBtn = $('#submit');
