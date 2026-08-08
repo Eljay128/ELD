@@ -403,7 +403,14 @@ const HORSE_BODY = "M95.03 2L90.51 2.17L83.64 4.01L78.61 6.36L72.24 9.88L71.73 9
 /* Mane and forelock: separate paths so the silhouette stays one closed shape. */
 const HORSE_PARTS = ["M95.03 2L90.51 2.17L83.64 4.01L78.61 6.36L72.24 9.88L71.73 9.88L71.57 10.21L66.03 11.72L61.68 14.07L57.32 15.58L57.77 16.87L62.33 15.53L67.14 14.57L73.2 15.25L74.13 14.75L75.34 15.93L81.14 11.28L85.48 9.23L91.09 5.47L95.09 3.6Z","M94.03 2.5 C98.53 1.5 101.03 4.5 100.53 8 C99.43 6 98.03 4.6 94.03 4.6 Z"];
 
-const BODY_ZONES = {"fore foot":[77,71,5],"fore pastern":[77,66,4],"fore cannon":[77,60,5],"knee":[77,52,5],"shoulder":[70,34,8],"hind foot":[25,72,5],"hind pastern":[25,67,4],"hind cannon":[23,62,5],"hock":[20,56,6],"stifle":[29,46,6],"hip":[16,26,9],"sacroiliac":[20,16,6],"back":[41,18,9],"neck":[80,13,8]};
+/* Centre and radius of each zone, measured off the traced outline rather than
+   judged by eye: the limb zones sit on the scanline band where that segment
+   actually is — the hoof where the column flares out to the ground, the pastern
+   on the short forward-sloping run above it, the cannon on the constant-width
+   run, the knee and hock on the wide band above that. Croup and haunch come
+   from the topline profile: the croup plateaus at y≈13 across x 26..38, and the
+   haunch runs from the point of buttock at x≈9 forward to the stifle at x≈26. */
+const BODY_ZONES = {"fore foot":[80.3,80,3.4],"fore pastern":[78.2,77,2.8],"fore cannon":[76.1,68.5,4.4],"knee":[76.2,58.5,4.2],"shoulder":[72,32,8],"hind foot":[26,80.3,3.4],"hind pastern":[24.3,77.3,2.8],"hind cannon":[21.8,70,4.2],"hock":[20.6,60,4.2],"stifle":[25,45,5],"hip":[20,29,7.5],"sacroiliac":[31,17,5.5],"back":[48,21,8],"neck":[80,13,8]};
 
 /**
  * Body map: where each candidate diagnosis sits, shaded by how likely it is.
