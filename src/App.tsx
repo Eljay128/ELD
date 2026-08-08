@@ -83,7 +83,9 @@ export default function App() {
       </header>
 
       <main>
-        {tab === 'me' && <MyProfile me={state.me} />}
+        {tab === 'me' && (
+          <MyProfile me={state.me} peerCount={state.peers.length} onToast={showToast} onGoToShare={() => setTab('share')} />
+        )}
         {tab === 'peers' && <Peers peers={state.peers} runSelection={state.runSelection} />}
         {tab === 'run' && <CoffeeRun me={state.me} peers={state.peers} runSelection={state.runSelection} />}
         {tab === 'share' && <Share me={state.me} onImported={showToast} />}

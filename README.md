@@ -12,6 +12,28 @@ travels as a link, a QR code, a file, or a direct browser-to-browser connection.
 
 ---
 
+## The home page
+
+The profile page is something you *read* and hand to someone, so it is laid out as a
+profile rather than a form:
+
+- **Identity** — the avatar is the focal point, with display name, handle and tagline.
+  Allergies and dietary flags sit right beneath, because that is safety information and
+  must not be one click away.
+- **Action row** — Edit profile, Share profile, and an overflow menu for the extended
+  operations (copy as text, copy share code, download a backup).
+- **Metrics** — four equal-width tiles: drinks saved, shops covered, go-tos set (out of the
+  four dayparts), and people sharing with you.
+- **Segmented navigation** — All / Morning / Day / Evening / Adult, filtering the grid
+  below. It is a connected track rather than pills, so it never reads as the same control
+  as the top-level tabs.
+- **Content grid** — the drinks themselves, as cards.
+
+Everything granular — identity fields, dietary flags, the never-bring list — lives behind
+**Edit profile** in a secondary view, so the primary card stays scannable.
+
+---
+
 ## What it does
 
 **A profile with four time-of-day sections.** Morning, Day, Evening, and Adult. Each holds
@@ -113,7 +135,15 @@ src/
     share.ts          Encode/decode, link building, inbound-link parsing
     p2p.ts            WebRTC exchange with manual signalling
     format.ts         Choices → the sentence you say at the counter
-  components/         React UI, one file per screen
+  components/
+    MyProfile.tsx     The profile home: identity, metrics, segmented nav, grid
+    EditProfile.tsx   Identity and constraints, kept off the primary card
+    OrderEditor.tsx   Generic option renderer, driven entirely by the catalog
+    CoffeeRun.tsx     Consolidated buy-list grouped by shop
+    Peers.tsx         Imported profiles and the card you read at the counter
+    Share.tsx         Codes, links, QR, file import, camera scanning
+    P2P.tsx           The direct browser-to-browser swap
+    Settings.tsx      Data, catalog provenance, privacy, reset
 scripts/
   smoke.mjs           End-to-end test driving two independent browsers
   check-catalog.ts    Catches option ids that reference nothing
@@ -152,10 +182,11 @@ automatically, for whatever the structure did not anticipate.
 real flow, because two contexts mean two localStorages, which is exactly the peer boundary
 the app is built around. It covers profile building, dietary-conflict warnings, persistence
 across reload, share-link import, allergy propagation, the run sheet, idempotent
-re-imports, and damaged-code handling. 26 checks, no console errors tolerated.
+re-imports, and damaged-code handling, plus the profile metrics, segmented filter and
+overflow menu. 35 checks, no console errors tolerated.
 
 ```bash
-npm test        # 26 browser checks
+npm test        # 35 browser checks
 npm run check   # catalog consistency
 ```
 

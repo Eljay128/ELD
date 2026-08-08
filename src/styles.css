@@ -315,6 +315,198 @@ details.more > summary::-webkit-details-marker { display: none; }
 details.more > summary::before { content: '▸'; transition: transform 0.15s; display: inline-block; }
 details.more[open] > summary::before { transform: rotate(90deg); }
 
+/* --- profile identity ------------------------------------------------------
+   The avatar is the structural focal point: it is the largest element on the
+   page, it sits at the start of the reading order, and everything else in the
+   header is measured against it.
+   --------------------------------------------------------------------------- */
+
+.identity {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'avatar text'
+    'actions actions';
+  gap: 16px 18px;
+  align-items: start;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+}
+
+.avatar {
+  grid-area: avatar;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-border);
+  background: var(--accent-soft);
+  font-size: 2.6rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.avatar:hover { transform: scale(1.03); box-shadow: var(--shadow); }
+
+.identity-text { grid-area: text; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.identity-text h1 { font-size: 1.75rem; text-wrap: balance; overflow-wrap: anywhere; }
+.identity-sub { display: flex; flex-direction: column; gap: 2px; }
+.identity-sub .handle { color: var(--text-faint); font-size: 0.92rem; font-weight: 550; }
+.identity-sub .tagline { color: var(--text-dim); overflow-wrap: anywhere; }
+
+.constraint-row { margin-top: 4px; }
+.constraint-row .tag { white-space: normal; text-align: left; }
+
+.action-row { grid-area: actions; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+button.btn.icon {
+  width: 38px;
+  padding: 0;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* --- overflow menu --------------------------------------------------------- */
+
+.menu-wrap { position: relative; }
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+}
+.menu button {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+.menu button:hover { background: var(--surface-2); }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 6px; }
+
+/* --- metrics ---------------------------------------------------------------
+   Equal-width tiles. No per-tile colour: these are counts of the same kind of
+   thing, and a hue would imply a category difference that is not there.
+   --------------------------------------------------------------------------- */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.metric-value {
+  font-size: 1.75rem;
+  font-weight: 680;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.metric-label {
+  margin-top: 3px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+/* --- segmented navigation --------------------------------------------------
+   A connected track, visually distinct from the pill-shaped top-level tabs so
+   the two levels of navigation never read as the same control.
+   --------------------------------------------------------------------------- */
+
+.segmented {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--bg-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.segmented button {
+  flex: 1 1 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.segmented button:hover { color: var(--text); background: var(--surface-2); }
+.segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 650;
+  box-shadow: var(--shadow);
+}
+.seg-count {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.78em;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.segmented button[aria-pressed='true'] .seg-count { color: var(--accent); }
+
+/* --- drink grid ------------------------------------------------------------ */
+
+.drink-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+}
+.drink-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  min-width: 0;
+}
+.drink-card.fav { border-color: var(--accent-border); background: color-mix(in oklab, var(--accent-soft) 35%, var(--surface)); }
+.drink-top { display: flex; gap: 10px; align-items: flex-start; width: 100%; }
+.drink-glyph { font-size: 1.4rem; line-height: 1.2; }
+.drink-heading { flex: 1; min-width: 0; }
+.drink-heading h3 { font-size: 1rem; overflow-wrap: anywhere; }
+.drink-card .star { font-size: 1rem; padding: 2px 7px; }
+.drink-line { color: var(--text-dim); font-size: 0.89rem; margin: 0; overflow-wrap: anywhere; }
+.drink-note { color: var(--text-dim); font-size: 0.86rem; font-style: italic; margin: 0; overflow-wrap: anywhere; }
+.drink-acts { display: flex; gap: 6px; width: 100%; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+
 /* --- order cards ---------------------------------------------------------- */
 
 .order {
@@ -487,11 +679,32 @@ table.stats td:last-child { text-align: right; font-variant-numeric: tabular-num
 
 .scroll-x { overflow-x: auto; }
 
+@media (max-width: 760px) {
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .segmented button { flex: 0 0 auto; }
+}
+
 @media (max-width: 640px) {
   .topbar { flex-wrap: wrap; }
   .tabs { margin-left: 0; width: 100%; }
   .tab { flex: 1; justify-content: center; }
   main { padding: 16px 12px 90px; }
+
+  .identity {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'avatar' 'text' 'actions';
+    justify-items: start;
+    padding: 18px;
+  }
+  .avatar { width: 68px; height: 68px; font-size: 2rem; }
+  .identity-text h1 { font-size: 1.45rem; }
+  .action-row { width: 100%; }
+  .action-row .btn:not(.icon) { flex: 1; justify-content: center; }
+  .metric-value { font-size: 1.5rem; }
+
+  /* The blurb is context, not instruction — it loses to the heading and the
+     add button when there is not room for all three. */
+  .daypart-head .blurb { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -70,6 +70,20 @@ const browser = await chromium.launch({
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 });
 
+/**
+ * Open the add-drink editor from a daypart section. Scoped to the section's
+ * heading rather than its text: occasion chips like "Every day" would otherwise
+ * make the Morning section match a search for "Day".
+ */
+async function addTo(page, daypart) {
+  await page
+    .locator('section')
+    .filter({ has: page.locator('h2', { hasText: daypart }) })
+    .first()
+    .getByRole('button', { name: '+ Add' })
+    .click();
+}
+
 async function newPeer(name) {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -84,15 +98,22 @@ async function newPeer(name) {
 try {
   // --- Ada builds a profile ------------------------------------------------
   const ada = await newPeer('Ada');
+
+  // Identity and constraints live in the secondary "Edit profile" view so the
+  // home page stays a profile rather than a form.
+  await ada.page.getByRole('button', { name: 'Edit profile', exact: true }).first().click();
   await ada.page.getByPlaceholder('What peers should call you').fill('Ada');
   await ada.page.getByPlaceholder('Oat milk or nothing. Decaf after 2pm.').fill('Oat milk or nothing.');
-
-  // Dietary flag + allergy note, the parts peers most need.
   await ada.page.getByRole('button', { name: 'Dairy-free', exact: true }).click();
   await ada.page.getByPlaceholder(/Severe tree-nut allergy/).fill('Tree nut allergy — no almond milk.');
+  await ada.page.getByRole('button', { name: 'Done', exact: true }).click();
+  await ada.page.waitForSelector('.modal', { state: 'detached' });
+
+  check('identity edits land on the profile header', (await ada.page.locator('.identity-text h1').textContent()) === 'Ada');
+  check('allergy is surfaced on the profile itself', await ada.page.locator('.constraint-row .tag.danger').isVisible());
 
   // Add a morning drink at Starbucks with real customization.
-  await ada.page.locator('section', { hasText: 'Morning' }).first().getByRole('button', { name: '+ Add' }).click();
+  await addTo(ada.page, 'Morning');
   await ada.page.getByRole('button', { name: /Starbucks/ }).click();
   await ada.page.getByRole('button', { name: 'Caffè Latte', exact: true }).click();
   await ada.page.waitForSelector('.banner');
@@ -116,24 +137,40 @@ try {
   await ada.page.getByRole('button', { name: 'Whipped cream', exact: true }).click();
 
   await ada.page.getByRole('button', { name: 'Save to my profile' }).click();
-  await ada.page.waitForSelector('.order');
-  check('order saved to profile', (await ada.page.locator('.order').count()) === 1);
+  await ada.page.waitForSelector('.drink-card');
+  check('order saved to profile', (await ada.page.locator('.drink-card').count()) === 1);
 
   // Mark it as the go-to so peers know what to buy.
-  await ada.page.locator('.order').first().getByRole('button', { name: '☆' }).click();
-  check('go-to marking works', (await ada.page.locator('.order.fav').count()) === 1);
+  await ada.page.locator('.drink-card').first().getByRole('button', { name: '☆' }).click();
+  check('go-to marking works', (await ada.page.locator('.drink-card.fav').count()) === 1);
 
   // An adult-beverage entry, to prove the fourth daypart round-trips too.
-  await ada.page.locator('section', { hasText: 'Adult' }).first().getByRole('button', { name: '+ Add' }).click();
+  await addTo(ada.page, 'Adult');
   await ada.page.getByRole('button', { name: /Bar & adult beverages/ }).click();
   await ada.page.getByRole('button', { name: 'Negroni', exact: true }).click();
   await ada.page.getByRole('button', { name: 'Save to my profile' }).click();
-  check('adult beverage saved', (await ada.page.locator('.order').count()) === 2);
+  check('adult beverage saved', (await ada.page.locator('.drink-card').count()) === 2);
 
   // Persistence across a reload — the whole app depends on this.
   await ada.page.reload();
-  await ada.page.waitForSelector('.order');
-  check('profile survives a reload', (await ada.page.locator('.order').count()) === 2);
+  await ada.page.waitForSelector('.drink-card');
+  check('profile survives a reload', (await ada.page.locator('.drink-card').count()) === 2);
+
+  // Metrics and the segmented filter are the two new structural pieces.
+  const metricValues = await ada.page.locator('.metric-value').allTextContents();
+  check('metrics count the saved drinks', metricValues[0] === '2', metricValues.join(' / '));
+  check('metrics count distinct shops', metricValues[1] === '2', metricValues.join(' / '));
+  check('go-to metric counts covered dayparts', metricValues[2] === '1/4', metricValues.join(' / '));
+  await ada.page.locator('.segmented button', { hasText: 'Adult' }).click();
+  check('segmented filter narrows the grid', (await ada.page.locator('.drink-card').count()) === 1);
+  await ada.page.locator('.segmented button', { hasText: 'All' }).click();
+  check('segmented filter restores the grid', (await ada.page.locator('.drink-card').count()) === 2);
+
+  // The overflow menu holds the extended operations.
+  await ada.page.getByRole('button', { name: 'More profile actions' }).click();
+  check('overflow menu opens', await ada.page.locator('.menu[role="menu"]').isVisible());
+  await ada.page.keyboard.press('Escape');
+  check('overflow menu closes on Escape', (await ada.page.locator('.menu[role="menu"]').count()) === 0);
 
   // --- Ada shares ----------------------------------------------------------
   await ada.page.getByRole('button', { name: 'Share', exact: true }).click();
@@ -144,7 +181,10 @@ try {
 
   // --- Bo imports Ada by opening the link ----------------------------------
   const bo = await newPeer('Bo');
+  await bo.page.getByRole('button', { name: 'Edit profile', exact: true }).first().click();
   await bo.page.getByPlaceholder('What peers should call you').fill('Bo');
+  await bo.page.getByRole('button', { name: 'Done', exact: true }).click();
+  await bo.page.waitForSelector('.modal', { state: 'detached' });
   const linkPath = link.slice(link.indexOf('#'));
   await bo.page.goto(base + linkPath);
   await bo.page.waitForSelector('.card');
