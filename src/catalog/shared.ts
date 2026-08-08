@@ -7,8 +7,15 @@ export function vals(...specs: (string | OptionValue)[]): OptionValue[] {
   );
 }
 
+/**
+ * Auto-generated option id. Accents are folded to their base letter first —
+ * without that, "McCafé" ends in a separator and silently becomes
+ * "mcdonald-s-mccaf", which then fails to match any id written by hand.
+ */
 export function slug(s: string): string {
   return s
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');

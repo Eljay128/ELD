@@ -18,7 +18,7 @@ travels as a link, a QR code, a file, or a direct browser-to-browser connection.
 as many saved orders as you want, and one order per section can be marked as your go-to —
 the thing to buy if nobody asks.
 
-**Real menu customization, not a text box.** 10 venues, 243 drinks, 1,072 distinct
+**Real menu customization, not a text box.** 10 venues, 243 drinks, 903 distinct
 customization options, all structured. Starbucks gives you five sizes, nine milks, both
 espresso roasts, pump counts, cold foams, and the full syrup wall. Dunkin' distinguishes
 sweetened *swirls* from unsweetened *shots*, because that distinction is the difference
@@ -53,6 +53,8 @@ npm install
 npm run dev      # development server
 npm run build    # production build into dist/
 npm test         # builds, then runs the end-to-end smoke test
+npm run check    # validates the catalog and sample profiles
+npm run single   # folds the build into one self-contained HTML file
 ```
 
 The built output in `dist/` is fully static and makes **no network requests at all** — put
@@ -112,7 +114,10 @@ src/
     p2p.ts            WebRTC exchange with manual signalling
     format.ts         Choices → the sentence you say at the counter
   components/         React UI, one file per screen
-scripts/smoke.mjs     End-to-end test driving two independent browsers
+scripts/
+  smoke.mjs           End-to-end test driving two independent browsers
+  check-catalog.ts    Catches option ids that reference nothing
+  build-single-file.mjs  Inlines the build into one portable HTML file
 ```
 
 ### Adding a shop
@@ -150,8 +155,13 @@ across reload, share-link import, allergy propagation, the run sheet, idempotent
 re-imports, and damaged-code handling. 26 checks, no console errors tolerated.
 
 ```bash
-npm test
+npm test        # 26 browser checks
+npm run check   # catalog consistency
 ```
+
+`check-catalog.ts` exists because a mistyped option id does not throw — it silently
+vanishes from the rendered order, so the profile looks fine and quietly means something
+else. It caught exactly that bug on its first run.
 
 ---
 

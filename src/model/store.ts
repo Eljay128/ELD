@@ -1,6 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import type { AppState, Circle, Order, Peer, Profile } from './types.ts';
 import { emptyProfile, newId } from './types.ts';
+import { SAMPLE_PEERS } from './samples.ts';
 import type { Daypart } from '../catalog/types.ts';
 import { groupsForDrink } from '../catalog/index.ts';
 
@@ -162,6 +163,20 @@ export function importPeer(profile: Profile, source: Peer['source'], circle: Cir
   if (!incomingIsNewer) return { peer: existing, status: 'unchanged' };
   set({ ...state, peers: state.peers.map((p) => (p.profile.id === profile.id ? peer : p)) });
   return { peer, status: 'updated' };
+}
+
+/**
+ * Bring in the built-in example people. They arrive through the ordinary import
+ * path, so they behave exactly like anyone a real peer has shared.
+ */
+export function loadSamplePeers(): number {
+  const circles: Circle[] = ['friends', 'coworkers', 'family'];
+  let added = 0;
+  for (const [i, profile] of SAMPLE_PEERS.entries()) {
+    const { status } = importPeer(structuredClone(profile), 'sample', circles[i] ?? 'other');
+    if (status === 'added' || status === 'updated') added++;
+  }
+  return added;
 }
 
 export function removePeer(id: string): void {

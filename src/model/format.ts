@@ -94,7 +94,7 @@ function phraseFor(
     // default dairy milk still trips the owner's dairy-free warning.
     for (const t of value.tags ?? []) tags.add(t);
     if (SKIP_VALUES.has(id)) continue;
-    labels.push(stripSizeSuffix(value.label));
+    labels.push(group.id === 'size' ? stripSizeSuffix(value.label) : value.label);
   }
   if (labels.length === 0) return null;
 
@@ -105,18 +105,41 @@ function phraseFor(
   // Lead groups read as bare adjectives ("Grande iced"); everything else keeps
   // its group name only when the value alone would be ambiguous.
   if (LEAD_GROUPS.includes(group.id)) return labels.join(' ');
-  if (needsGroupName(group)) return `${group.label.toLowerCase()}: ${labels.join(' + ')}`;
+  const prefix = SPEAK_AS[group.id];
+  if (prefix) return `${prefix}: ${labels.join(' + ')}`;
   return labels.join(', ');
 }
 
-/** "Grande — 16 oz" reads better as just "Grande" in a spoken order. */
+/**
+ * "Grande — 16 oz" reads better as just "Grande". Only sizes get trimmed —
+ * elsewhere the text after the dash carries the meaning, and dropping it turns
+ * "Strong — 5 minutes" into a bare "Strong".
+ */
 function stripSizeSuffix(label: string): string {
   return label.replace(/\s+—\s+.*$/, '');
 }
 
-function needsGroupName(group: OptionGroup): boolean {
-  return ['sweetness', 'ice_pct', 'sweetness_level', 'strength', 'topping_amount', 'dairy_amount', 'milk_amount', 'steep', 'roast', 'brew_method', 'blend', 'texture', 'serve', 'ice_style', 'occasion_note', 'hard_no', 'flavor_profile'].includes(group.id);
-}
+/**
+ * Groups whose value is ambiguous standing alone — "A splash" of what? — get a
+ * short prefix. These are deliberately terse nouns rather than the group's UI
+ * label: "How much milk" is a good question to ask a member and a bad thing to
+ * read off a list at a counter.
+ */
+const SPEAK_AS: Record<string, string> = {
+  milk_amount: 'milk',
+  dairy_amount: 'dairy',
+  steep: 'steep',
+  roast: 'roast',
+  brew_method: 'brew',
+  blend: 'blend',
+  texture: 'texture',
+  serve: 'served',
+  ice_style: 'ice',
+  topping_amount: 'toppings',
+  occasion_note: 'note',
+  hard_no: 'never',
+  flavor_profile: 'style',
+};
 
 function countNoun(group: OptionGroup, n: number): string {
   const base = {

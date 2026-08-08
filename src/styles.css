@@ -425,14 +425,17 @@ details.more[open] > summary::before { transform: rotate(90deg); }
 /* --- run sheet ------------------------------------------------------------ */
 
 .sheet { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+/*
+ * Not sticky: the shop heading sits inside `.sheet`, which clips its own
+ * corners with `overflow: hidden`. A sticky child of a clipped box slides out
+ * of position as the page scrolls and covers the rows underneath it.
+ */
 .sheet .shop {
   padding: 9px 14px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
   font-weight: 650;
   font-size: 0.9rem;
-  position: sticky;
-  top: 52px;
 }
 .sheet ul { list-style: none; margin: 0; padding: 0; }
 .sheet li { padding: 11px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: baseline; }
@@ -489,7 +492,6 @@ table.stats td:last-child { text-align: right; font-variant-numeric: tabular-num
   .tabs { margin-left: 0; width: 100%; }
   .tab { flex: 1; justify-content: center; }
   main { padding: 16px 12px 90px; }
-  .sheet .shop { position: static; }
 }
 
 @media (prefers-reduced-motion: reduce) {

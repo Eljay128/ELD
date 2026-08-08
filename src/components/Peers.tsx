@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { DAYPARTS } from '../catalog/index.ts';
 import type { Circle, Peer } from '../model/types.ts';
 import { CIRCLES, DIET_FLAGS } from '../model/types.ts';
-import { removePeer, setPeerCircle, toggleRunSelection } from '../model/store.ts';
+import { loadSamplePeers, removePeer, setPeerCircle, toggleRunSelection } from '../model/store.ts';
 import { formatOrder, profileToText } from '../model/format.ts';
 import { CopyButton, Empty, Modal } from './ui.tsx';
 
@@ -33,6 +33,14 @@ export function Peers({ peers, runSelection }: { peers: Peer[]; runSelection: st
       {peers.length === 0 ? (
         <Empty icon="🫂" title="No one here yet">
           Head to <strong>Share &amp; receive</strong> and paste a code someone sent you, or send them yours first.
+          <div className="row" style={{ justifyContent: 'center', marginTop: 14 }}>
+            <button className="btn" onClick={() => loadSamplePeers()}>
+              Add three example people
+            </button>
+          </div>
+          <div className="faint" style={{ marginTop: 8 }}>
+            Example profiles you can browse, run a coffee run with, and remove whenever you like.
+          </div>
         </Empty>
       ) : (
         <>

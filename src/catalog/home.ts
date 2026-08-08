@@ -51,7 +51,7 @@ export const home: Brand = {
       label: 'How much milk',
       kind: 'scale',
       values: vals('None', 'A splash', 'A little', 'Regular', 'Milky', 'Mostly milk'),
-      fallback: 'a-little',
+      fallback: 'regular',
     },
     CAFFEINE,
     SWEETENER,

@@ -78,11 +78,14 @@ export function drinksByFamily(drinks: Drink[]): { family: string; drinks: Drink
   return [...map].map(([family, list]) => ({ family, drinks: list }));
 }
 
-/** Total option combinations across the catalog — used for the "depth" stat. */
+/**
+ * Catalog size. `options` counts individually selectable values — a stepper
+ * counts once, not once per increment, so the number means what it says.
+ */
 export function catalogStats() {
   const drinks = BRANDS.reduce((n, b) => n + b.drinks.length, 0);
   const options = BRANDS.reduce(
-    (n, b) => n + b.groups.reduce((m, g) => m + (g.values?.length ?? (g.max ?? 0) - (g.min ?? 0) + 1), 0),
+    (n, b) => n + b.groups.reduce((m, g) => m + (g.values?.length ?? 1), 0),
     0,
   );
   return { brands: BRANDS.length, drinks, options };
