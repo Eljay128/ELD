@@ -8,3 +8,6 @@ tmp/
 # local run artifacts
 *-report.json
 *.log
+
+# tracing tool output
+tools/out/

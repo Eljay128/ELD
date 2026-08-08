@@ -292,7 +292,29 @@ src/schema.js        JSON Schema for the structured report
 src/analyze.js       Two-pass Claude pipeline
 public/              Single-page frontend (no build step)
 standalone/          Server-free build — shell.html + app.template.js + build.mjs
+tools/               Dev-time tooling, not needed to run the app
 ```
+
+### Replacing the horse artwork
+
+Two drawings ship in the app: the trotting horse on the analyzing screen, and the standing horse
+the report's body map is drawn on. Both are traced from a source image.
+
+```bash
+npm i -D playwright                      # only needed for this tool
+node tools/trace-silhouette.mjs horse.png --out trotting
+```
+
+That writes `tools/out/trotting.json` with the path normalized into a 120-wide viewBox, plus a
+calibration render with every fifth contour point indexed. The indices are how the legs are found
+when artwork needs to be animated: each leg is a contiguous run of the outline that leaves the
+barrel, drops to a hoof and returns, and cutting those runs out — closing each with the chord across
+its top — gives shapes that rotate about the shoulder or hip while the body closes over the same
+chords.
+
+Source images want to be a solid silhouette, side on, on a light background, with no watermark.
+**Only trace artwork you have the right to use** — anything traced here is published in the
+standalone build.
 
 Uploaded videos are written to `uploads/`, processed, and deleted in a `finally` block whether the
 analysis succeeds or fails. Nothing is retained.
