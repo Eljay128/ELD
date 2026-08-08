@@ -40,6 +40,15 @@ function check(name, ok, detail = '') {
   if (!ok) failures++;
 }
 
+/** A tiny but genuine 8x8 PNG, so the image pipeline gets something real to decode. */
+function pngFixture() {
+  return Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAJUlEQVR4nGP8z8Dwn4GKgIlm' +
+      'JhoyMjIyMjIyMjIyMjIyMjIyMgIANJgDAe6h6vAAAAAASUVORK5CYII=',
+    'base64',
+  );
+}
+
 /**
  * Use whatever Chromium this machine already has rather than downloading one.
  * The pre-installed build often does not match the revision this Playwright
@@ -172,12 +181,62 @@ try {
   await ada.page.keyboard.press('Escape');
   check('overflow menu closes on Escape', (await ada.page.locator('.menu[role="menu"]').count()) === 0);
 
+  // --- Profile picture -----------------------------------------------------
+  // A real PNG, uploaded through the actual file input, so the whole downscale
+  // and re-encode path runs rather than being stubbed.
+  await ada.page.getByRole('button', { name: 'Edit profile', exact: true }).first().click();
+  await ada.page.setInputFiles('input[type="file"][accept="image/*"]', {
+    name: 'me.png',
+    mimeType: 'image/png',
+    buffer: pngFixture(),
+  });
+  await ada.page.waitForSelector('.avatar-img');
+  const avatarSrc = await ada.page.locator('.modal .avatar-img').first().getAttribute('src');
+  check('uploaded picture is stored as a data URI', !!avatarSrc && avatarSrc.startsWith('data:image/'), avatarSrc?.slice(0, 30));
+  const sizeNote = await ada.page.locator('.modal .faint', { hasText: 'share code' }).first().textContent();
+  check('picture is downscaled to a share-safe size', /\d/.test(sizeNote ?? ''), sizeNote);
+  await ada.page.getByRole('button', { name: 'Done', exact: true }).click();
+  await ada.page.waitForSelector('.modal', { state: 'detached' });
+  check('picture replaces the emoji in the header', (await ada.page.locator('.identity .avatar-img').count()) === 1);
+
+  // --- Rounds feed ---------------------------------------------------------
+  await ada.page.getByRole('button', { name: /^Rounds/ }).click();
+  await ada.page.getByRole('button', { name: 'Log a round' }).first().click();
+  await ada.page.locator('.modal').getByRole('button', { name: /Ada/ }).last().click();
+  await ada.page.locator('.modal').getByRole('button', { name: 'Log it' }).click();
+  await ada.page.waitForSelector('.feed-item');
+  check('logging a round adds it to the feed', (await ada.page.locator('.feed-item').count()) === 1);
+  const feedText = await ada.page.locator('.feed-item').first().textContent();
+  check('feed names the buyer and the drink', /You bought/.test(feedText) && /Caff/.test(feedText), feedText?.slice(0, 90));
+  check('feed timestamps are relative', /just now|min ago/.test(feedText), feedText?.slice(-40));
+
+  // --- Cross-window live sync ----------------------------------------------
+  // A second page in the SAME context shares localStorage, which is exactly
+  // what a second tab is. The `storage` event should carry the round across
+  // with no reload and no polling.
+  const second = await ada.context.newPage();
+  await second.goto(base);
+  await second.waitForSelector('.brandmark');
+  await second.getByRole('button', { name: /^Rounds/ }).click();
+  check('a second window starts in step', (await second.locator('.feed-item').count()) === 1);
+
+  await ada.page.getByRole('button', { name: 'Log a round' }).first().click();
+  await ada.page.locator('.modal').getByRole('button', { name: /Ada/ }).last().click();
+  await ada.page.locator('.modal').getByRole('button', { name: 'Log it' }).click();
+  await second.waitForFunction(() => document.querySelectorAll('.feed-item').length === 2, null, { timeout: 5000 });
+  check('a new round reaches the other window live', (await second.locator('.feed-item').count()) === 2);
+  await second.close();
+
+  await ada.page.getByRole('button', { name: 'My profile' }).click();
+
   // --- Ada shares ----------------------------------------------------------
   await ada.page.getByRole('button', { name: 'Share', exact: true }).click();
   const link = await ada.page.locator('textarea.code').first().inputValue();
   check('share link generated', link.includes('#add=PF1.'), `${link.length} chars`);
   const qrPresent = await ada.page.locator('.qr-wrap svg').count();
-  check('QR code rendered locally', qrPresent === 1);
+  check('QR code stays scannable even with a photo attached', qrPresent === 1);
+  const qrNote = await ada.page.locator('.qr-wrap + .faint').textContent();
+  check('QR explains it omits the photo', /picture out/.test(qrNote ?? ''), qrNote);
 
   // --- Bo imports Ada by opening the link ----------------------------------
   const bo = await newPeer('Bo');
@@ -202,6 +261,7 @@ try {
   const detail = await bo.page.locator('.modal').textContent();
   check('peer card shows the exact drink', /Caffè Latte/.test(detail) && /Oat milk/i.test(detail));
   check('peer card shows the allergy note', /Tree nut allergy/.test(detail));
+  check('profile picture travels in the share link', (await bo.page.locator('.modal .avatar-img').count()) > 0);
   check('adult beverage came across', /Negroni/.test(detail));
   await bo.page.keyboard.press('Escape');
   await bo.page.waitForSelector('.modal', { state: 'detached' });

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Profile } from '../model/types.ts';
 import { DIET_FLAGS } from '../model/types.ts';
 import { updateMe } from '../model/store.ts';
-import { Field, Group, Modal } from './ui.tsx';
+import { AvatarError, avatarBytes, fileToAvatar } from '../model/avatar.ts';
+import { Avatar, Field, Group, Modal } from './ui.tsx';
 
 const EMOJI_CHOICES = ['☕', '🧋', '🍵', '🥤', '🍸', '🧃', '🍺', '🍷', '🥛', '🧉', '🫖', '🍹', '⚡', '🌞', '🌙', '🐝', '🦊', '🐙', '🌸', '🎧'];
 
@@ -13,6 +14,8 @@ const EMOJI_CHOICES = ['☕', '🧋', '🍵', '🥤', '🍸', '🧃', '🍺', '�
  */
 export function EditProfile({ me, onClose }: { me: Profile; onClose: () => void }) {
   const [dislikeDraft, setDislikeDraft] = useState('');
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
 
   const addDislike = () => {
     const value = dislikeDraft.trim();
@@ -58,7 +61,47 @@ export function EditProfile({ me, onClose }: { me: Profile; onClose: () => void 
           />
         </Field>
 
-        <Group label="Your icon">
+        <Group
+          label="Profile picture"
+          hint="Scaled down to a small square before it is stored, because your picture travels inside your share code."
+        >
+          <div className="row" style={{ alignItems: 'center', gap: 14 }}>
+            <Avatar emoji={me.emoji} src={me.avatar} name={me.name} size={72} />
+            <div className="stack" style={{ flex: 1, minWidth: 160, gap: 8 }}>
+              <div className="row-tight">
+                <button className="btn" onClick={() => photoRef.current?.click()}>
+                  {me.avatar ? 'Change picture' : 'Upload a picture'}
+                </button>
+                {me.avatar && (
+                  <button className="btn ghost danger" onClick={() => updateMe({ avatar: undefined })}>
+                    Remove
+                  </button>
+                )}
+              </div>
+              {me.avatar && <span className="faint">{formatBytes(avatarBytes(me.avatar))} added to your share code.</span>}
+              {photoError && <span className="tag danger">{photoError}</span>}
+            </div>
+            <input
+              ref={photoRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                setPhotoError(null);
+                try {
+                  updateMe({ avatar: await fileToAvatar(file) });
+                } catch (err) {
+                  setPhotoError(err instanceof AvatarError ? err.message : 'That picture could not be used.');
+                }
+              }}
+            />
+          </div>
+        </Group>
+
+        <Group label="Icon" hint="Used wherever a picture is too small to read, and whenever you have no picture set.">
           <div className="row-tight">
             {EMOJI_CHOICES.map((e) => (
               <button key={e} className="chip" aria-pressed={me.emoji === e} onClick={() => updateMe({ emoji: e })} aria-label={`Icon ${e}`}>
@@ -135,4 +178,8 @@ export function EditProfile({ me, onClose }: { me: Profile; onClose: () => void 
       </div>
     </Modal>
   );
+}
+
+function formatBytes(n: number): string {
+  return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
 }

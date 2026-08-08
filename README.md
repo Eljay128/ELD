@@ -17,7 +17,8 @@ travels as a link, a QR code, a file, or a direct browser-to-browser connection.
 The profile page is something you *read* and hand to someone, so it is laid out as a
 profile rather than a form:
 
-- **Identity** — the avatar is the focal point, with display name, handle and tagline.
+- **Identity** — the avatar is the focal point (a photo if you upload one, your emoji
+  otherwise), with display name, handle and tagline.
   Allergies and dietary flags sit right beneath, because that is safety information and
   must not be one click away.
 - **Action row** — Edit profile, Share profile, and an overflow menu for the extended
@@ -57,6 +58,10 @@ flag you set, the editor says so rather than silently blocking the save.
 consolidated list grouped by shop, with every allergy and hard-no called out above it. Copy
 it to a message or read it at the counter.
 
+**A rounds feed.** Who bought what for whom, newest first, with live relative timestamps.
+Log a round from the coffee-run sheet in one click, or by hand. See below for exactly how
+"live" it is.
+
 **Four ways to share.**
 
 | Method | Good for |
@@ -65,6 +70,47 @@ it to a message or read it at the counter.
 | QR code | In person, phone to phone |
 | `.pourfolio` file | Backups, AirDrop, attachments |
 | Direct swap (WebRTC) | Both people get each other's profile in one handshake |
+
+---
+
+## Profile pictures
+
+A picture is optional; the emoji is always there as the fallback, and stays the compact
+identity in dense places like the run sheet.
+
+The constraint that shapes the feature: **a profile travels as its own share code**, so the
+picture has to live inside that code. A phone photo would produce a multi-megabyte share
+string. Every upload is therefore centre-cropped to a square, downscaled to 128px, and
+re-encoded as WebP (JPEG where WebP is unavailable) before it is ever stored — typically
+3–6 KB, which keeps the profile pasteable as a link.
+
+That is still far past what a QR code can hold (2,953 characters), so when you have a
+picture set the **QR carries the photo-less version of your profile and says so on screen**.
+The link, the file, and the direct swap all include it.
+
+---
+
+## The rounds feed, and what "live" honestly means
+
+The feed shows peers and friends buying each other drinks. Three things are genuinely
+real-time:
+
+| Where | How live | Mechanism |
+| --- | --- | --- |
+| This window | Instant | Local state |
+| Your other tabs and windows | Instant, no polling | The `storage` event |
+| A connected peer | Instant while the connection is open | The WebRTC data channel |
+
+Timestamps re-render on a timer, so "just now" becomes "4 min ago" while you watch.
+
+**What it is not** is an always-on global timeline. Delivering activity to someone who is
+not currently connected requires a server to hold it until they come back, and Pourfolio
+deliberately has none. The feed states this in the app rather than implying a connection
+that is not there. Rounds otherwise move the same way profiles do — as a code you hand
+over (`PFR1.…`), merged by id so exchanging twice never duplicates.
+
+Rounds are stored as written rather than recomputed: if a peer later edits their profile,
+the round still records what was actually in the cup that day.
 
 ---
 
@@ -130,7 +176,8 @@ src/
     bar.ts            Spirits, wine, beer, cocktails, and zero-proof counterparts
     home.ts           Hosting: what to pour when someone visits
   model/
-    types.ts          Profile, Order, Peer, occasions, dietary flags
+    types.ts          Profile, Order, Peer, Round, occasions, dietary flags
+    avatar.ts         Crop, downscale and re-encode a photo to share-code size
     store.ts          localStorage-backed state; no network anywhere in it
     share.ts          Encode/decode, link building, inbound-link parsing
     p2p.ts            WebRTC exchange with manual signalling
@@ -143,6 +190,7 @@ src/
     Peers.tsx         Imported profiles and the card you read at the counter
     Share.tsx         Codes, links, QR, file import, camera scanning
     P2P.tsx           The direct browser-to-browser swap
+    Feed.tsx          The rounds feed, logging, and peer activity sync
     Settings.tsx      Data, catalog provenance, privacy, reset
 scripts/
   smoke.mjs           End-to-end test driving two independent browsers
@@ -183,10 +231,12 @@ real flow, because two contexts mean two localStorages, which is exactly the pee
 the app is built around. It covers profile building, dietary-conflict warnings, persistence
 across reload, share-link import, allergy propagation, the run sheet, idempotent
 re-imports, and damaged-code handling, plus the profile metrics, segmented filter and
-overflow menu. 35 checks, no console errors tolerated.
+overflow menu, the photo pipeline, the feed, and cross-window live sync (a second page
+sharing one localStorage — exactly what a second tab is). 45 checks, no console errors
+tolerated.
 
 ```bash
-npm test        # 35 browser checks
+npm test        # 45 browser checks
 npm run check   # catalog consistency
 ```
 

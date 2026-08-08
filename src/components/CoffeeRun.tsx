@@ -2,17 +2,27 @@ import { useMemo, useState } from 'react';
 import { DAYPARTS } from '../catalog/index.ts';
 import type { Daypart } from '../catalog/types.ts';
 import type { Order, Peer, Profile } from '../model/types.ts';
-import { CIRCLES, DIET_FLAGS, OCCASIONS } from '../model/types.ts';
-import { clearRunSelection, selectAllForRun, toggleRunSelection } from '../model/store.ts';
+import { CIRCLES, DIET_FLAGS, OCCASIONS, newId } from '../model/types.ts';
+import { addRound, clearRunSelection, selectAllForRun, toggleRunSelection } from '../model/store.ts';
 import { formatOrder, runSheet } from '../model/format.ts';
-import { CopyButton, Empty } from './ui.tsx';
+import { Avatar, CopyButton, Empty } from './ui.tsx';
 
 /**
  * The reason the whole thing exists: you are going to the shop, and you need
  * everyone's order correct on the first try — including the parts people are
  * too polite to repeat, like an allergy or "no whipped cream, genuinely".
  */
-export function CoffeeRun({ me, peers, runSelection }: { me: Profile; peers: Peer[]; runSelection: string[] }) {
+export function CoffeeRun({
+  me,
+  peers,
+  runSelection,
+  onToast,
+}: {
+  me: Profile;
+  peers: Peer[];
+  runSelection: string[];
+  onToast: (msg: string) => void;
+}) {
   const [daypart, setDaypart] = useState<Daypart>(guessDaypart());
   const [occasion, setOccasion] = useState<string>('any');
   const [includeMe, setIncludeMe] = useState(true);
@@ -97,7 +107,8 @@ export function CoffeeRun({ me, peers, runSelection }: { me: Profile; peers: Pee
             <span className="label" style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: 5 }}>People</span>
             <div className="row-tight">
               <button className="chip" aria-pressed={includeMe} onClick={() => setIncludeMe((v) => !v)}>
-                {me.emoji} {me.name || 'You'} <span className="sub">you</span>
+                <Avatar emoji={me.emoji} src={me.avatar} name={me.name} size={22} /> {me.name || 'You'}{' '}
+                <span className="sub">you</span>
               </button>
               {peers.map((p) => (
                 <button
@@ -106,7 +117,8 @@ export function CoffeeRun({ me, peers, runSelection }: { me: Profile; peers: Pee
                   aria-pressed={runSelection.includes(p.profile.id)}
                   onClick={() => toggleRunSelection(p.profile.id)}
                 >
-                  {p.profile.emoji} {p.profile.name || 'Unnamed'}
+                  <Avatar emoji={p.profile.emoji} src={p.profile.avatar} name={p.profile.name} size={22} />{' '}
+                  {p.profile.name || 'Unnamed'}
                   <span className="sub">{CIRCLES.find((c) => c.id === p.circle)?.emoji}</span>
                 </button>
               ))}
@@ -128,6 +140,37 @@ export function CoffeeRun({ me, peers, runSelection }: { me: Profile; peers: Pee
             <CopyButton className="btn small spacer" text={plainText} label="Copy the list" />
             <button className="btn small" onClick={() => window.print()}>
               Print
+            </button>
+            <button
+              className="btn small primary"
+              onClick={() => {
+                addRound({
+                  id: newId(),
+                  at: Date.now(),
+                  buyerId: me.id,
+                  buyerName: me.name || 'You',
+                  buyerEmoji: me.emoji,
+                  buyerAvatar: me.avatar,
+                  occasion: occasion === 'any' ? undefined : occasion,
+                  source: 'me',
+                  recipients: withOrders
+                    .filter(({ profile }) => profile.id !== me.id)
+                    .map(({ profile, order }) => {
+                      const f = formatOrder(order);
+                      return {
+                        id: profile.id,
+                        name: profile.name || 'Unnamed',
+                        emoji: profile.emoji,
+                        drink: f.line,
+                        brand: f.brandName,
+                        brandEmoji: f.brandEmoji,
+                      };
+                    }),
+                });
+                onToast('Round logged to your feed');
+              }}
+            >
+              I bought this round
             </button>
           </div>
 

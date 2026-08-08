@@ -164,6 +164,41 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * A person's picture. Falls back to their emoji whenever there is no photo, so
+ * every profile has a usable identity mark without requiring an upload.
+ */
+export function Avatar({
+  emoji,
+  src,
+  name,
+  size = 40,
+}: {
+  emoji: string;
+  src?: string;
+  name?: string;
+  size?: number;
+}) {
+  const style = { width: size, height: size, fontSize: Math.round(size * 0.52) };
+  if (src) {
+    return (
+      <img
+        className="avatar-img"
+        src={src}
+        alt={name ? `${name}'s profile picture` : 'Profile picture'}
+        style={style}
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
+  return (
+    <span className="avatar-emoji" style={style} role="img" aria-label={name ? `${name}'s icon` : 'Profile icon'}>
+      {emoji}
+    </span>
+  );
+}
+
 export function Empty({ icon, title, children }: { icon: string; title: string; children?: ReactNode }) {
   return (
     <div className="empty">

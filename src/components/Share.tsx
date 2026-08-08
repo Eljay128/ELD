@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import type { Circle, Profile } from '../model/types.ts';
+import type { AppState, Circle } from '../model/types.ts';
 import { CIRCLES } from '../model/types.ts';
-import { ShareCodeError, decodeProfile, encodeProfile, shareLink } from '../model/share.ts';
+import { ShareCodeError, decodeProfile, encodeProfile, encodeProfileSlim, shareLink } from '../model/share.ts';
 import { importPeer } from '../model/store.ts';
 import { profileToText } from '../model/format.ts';
 import { CopyButton, Field, Group, QR } from './ui.tsx';
 import { P2PPanel } from './P2P.tsx';
 
-export function Share({ me, onImported }: { me: Profile; onImported: (msg: string) => void }) {
+export function Share({ state, onImported }: { state: AppState; onImported: (msg: string) => void }) {
+  const me = state.me;
   const ready = me.name.trim().length > 0 && me.orders.length > 0;
   const code = useMemo(() => encodeProfile(me), [me]);
   const link = useMemo(() => shareLink(me), [me]);
+  // A photo is worth several kilobytes, which a QR code cannot hold. Rather
+  // than render an unscannable block, the QR carries the photo-less profile and
+  // says so — the link and file still include the picture.
+  const slimCode = useMemo(() => encodeProfileSlim(me), [me]);
+  const qrPayload = me.avatar ? `${location.origin}${location.pathname}#add=${slimCode}` : link;
 
   return (
     <>
@@ -73,15 +79,17 @@ export function Share({ me, onImported }: { me: Profile; onImported: (msg: strin
             </div>
           </div>
           <div style={{ flexShrink: 0 }}>
-            <QR text={link} label="QR code containing your beverage profile" />
-            <div className="faint" style={{ textAlign: 'center', marginTop: 6 }}>Point a phone at this</div>
+            <QR text={qrPayload} label="QR code containing your beverage profile" />
+            <div className="faint" style={{ textAlign: 'center', marginTop: 6, maxWidth: 240 }}>
+              {me.avatar ? 'Point a phone at this — the QR leaves your picture out to stay scannable.' : 'Point a phone at this'}
+            </div>
           </div>
         </div>
       </div>
 
       <ImportCard onImported={onImported} />
 
-      <P2PPanel me={me} onImported={onImported} />
+      <P2PPanel me={me} rounds={state.rounds} onImported={onImported} />
     </>
   );
 }

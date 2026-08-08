@@ -1,5 +1,5 @@
-import type { Profile } from './types.ts';
-import { decodeProfile, encodeProfile } from './share.ts';
+import type { Profile, Round } from './types.ts';
+import { decodeProfile, decodeRounds, encodeProfile, encodeRounds, isRoundsCode } from './share.ts';
 
 /**
  * Direct peer-to-peer profile exchange over WebRTC, with **no signalling
@@ -33,6 +33,8 @@ export interface P2PEvents {
   onPhase(phase: P2PPhase, detail?: string): void;
   /** Fired once the other side's profile arrives. */
   onProfile(profile: Profile): void;
+  /** Fired when their recent activity arrives, if they sent any. */
+  onRounds?(rounds: Round[]): void;
 }
 
 export interface P2PSession {
@@ -82,14 +84,22 @@ function gathered(pc: RTCPeerConnection): Promise<void> {
   });
 }
 
-function wireChannel(channel: RTCDataChannel, me: Profile, events: P2PEvents): void {
+function wireChannel(channel: RTCDataChannel, me: Profile, rounds: Round[], events: P2PEvents): void {
   channel.onopen = () => {
     events.onPhase('connected');
+    // Two messages, each self-describing by prefix: the profile, then recent
+    // activity. Activity is optional, so an empty list is simply not sent.
     channel.send(encodeProfile(me));
+    if (rounds.length > 0) channel.send(encodeRounds(rounds.slice(0, 50)));
   };
   channel.onmessage = (e) => {
+    const payload = String(e.data);
     try {
-      events.onProfile(decodeProfile(String(e.data)));
+      if (isRoundsCode(payload)) {
+        events.onRounds?.(decodeRounds(payload));
+        return;
+      }
+      events.onProfile(decodeProfile(payload));
       events.onPhase('exchanged');
     } catch (err) {
       events.onPhase('failed', err instanceof Error ? err.message : 'Could not read what they sent.');
@@ -99,10 +109,15 @@ function wireChannel(channel: RTCDataChannel, me: Profile, events: P2PEvents): v
 }
 
 /** Side A: create the invitation blob, then accept the reply blob. */
-export function startOffer(me: Profile, events: P2PEvents, iceServers: RTCIceServer[] = DEFAULT_ICE): P2PSession {
+export function startOffer(
+  me: Profile,
+  events: P2PEvents,
+  rounds: Round[] = [],
+  iceServers: RTCIceServer[] = DEFAULT_ICE,
+): P2PSession {
   const pc = new RTCPeerConnection({ iceServers });
   const channel = pc.createDataChannel(CHANNEL);
-  wireChannel(channel, me, events);
+  wireChannel(channel, me, rounds, events);
   watchConnection(pc, events);
 
   events.onPhase('creating-offer');
@@ -132,10 +147,11 @@ export function answerOffer(
   me: Profile,
   remoteBlob: string,
   events: P2PEvents,
+  rounds: Round[] = [],
   iceServers: RTCIceServer[] = DEFAULT_ICE,
 ): P2PSession {
   const pc = new RTCPeerConnection({ iceServers });
-  pc.ondatachannel = (e) => wireChannel(e.channel, me, events);
+  pc.ondatachannel = (e) => wireChannel(e.channel, me, rounds, events);
   watchConnection(pc, events);
 
   events.onPhase('creating-answer');

@@ -7,14 +7,16 @@ import { MyProfile } from './components/MyProfile.tsx';
 import { Peers } from './components/Peers.tsx';
 import { CoffeeRun } from './components/CoffeeRun.tsx';
 import { Share } from './components/Share.tsx';
+import { Feed } from './components/Feed.tsx';
 import { Settings } from './components/Settings.tsx';
 import { useToast } from './components/ui.tsx';
 
-type Tab = 'me' | 'peers' | 'run' | 'share' | 'settings';
+type Tab = 'me' | 'peers' | 'feed' | 'run' | 'share' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'me', label: 'My profile' },
   { id: 'peers', label: 'People' },
+  { id: 'feed', label: 'Rounds' },
   { id: 'run', label: 'Coffee run' },
   { id: 'share', label: 'Share' },
   { id: 'settings', label: 'Settings' },
@@ -76,6 +78,7 @@ export default function App() {
             <button key={t.id} className="tab" aria-current={tab === t.id} onClick={() => setTab(t.id)}>
               {t.label}
               {t.id === 'peers' && state.peers.length > 0 && <span className="count">{state.peers.length}</span>}
+              {t.id === 'feed' && state.rounds.length > 0 && <span className="count">{state.rounds.length}</span>}
               {t.id === 'run' && state.runSelection.length > 0 && <span className="count">{state.runSelection.length}</span>}
             </button>
           ))}
@@ -87,8 +90,11 @@ export default function App() {
           <MyProfile me={state.me} peerCount={state.peers.length} onToast={showToast} onGoToShare={() => setTab('share')} />
         )}
         {tab === 'peers' && <Peers peers={state.peers} runSelection={state.runSelection} />}
-        {tab === 'run' && <CoffeeRun me={state.me} peers={state.peers} runSelection={state.runSelection} />}
-        {tab === 'share' && <Share me={state.me} onImported={showToast} />}
+        {tab === 'feed' && <Feed state={state} onToast={showToast} />}
+        {tab === 'run' && (
+          <CoffeeRun me={state.me} peers={state.peers} runSelection={state.runSelection} onToast={showToast} />
+        )}
+        {tab === 'share' && <Share state={state} onImported={showToast} />}
         {tab === 'settings' && <Settings state={state} stats={stats} onToast={showToast} />}
       </main>
 

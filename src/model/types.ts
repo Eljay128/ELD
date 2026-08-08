@@ -55,7 +55,15 @@ export interface Profile {
   id: string;
   name: string;
   handle?: string;
+  /** Always set — it is the fallback whenever there is no photo, and it stays
+   *  the compact identity in dense places like the run sheet. */
   emoji: string;
+  /**
+   * Optional profile photo as a data URI. Downscaled to a small square before
+   * it is stored, because this field travels inside the share code — a
+   * full-resolution image would make the code unusable.
+   */
+  avatar?: string;
   /** One line peers see under the name. */
   tagline?: string;
   /** Hard constraints — rendered as warnings, not silent filters. */
@@ -88,11 +96,47 @@ export const CIRCLES: { id: Circle; label: string; emoji: string }[] = [
   { id: 'other', label: 'Other', emoji: '🌐' },
 ];
 
+/** One drink bought for one person, inside a round. */
+export interface RoundRecipient {
+  /** Profile id, or a free-text id when someone is not in your peer list. */
+  id: string;
+  name: string;
+  emoji: string;
+  /** The order as it was actually bought, already formatted. */
+  drink: string;
+  brand: string;
+  brandEmoji: string;
+}
+
+/**
+ * A record of someone buying drinks for someone else. This is the unit the
+ * activity feed is built from.
+ *
+ * Rounds are facts about something that happened, so they are stored as written
+ * rather than recomputed — if a peer later edits their profile, the round still
+ * says what was actually in the cup that day.
+ */
+export interface Round {
+  id: string;
+  at: number;
+  buyerId: string;
+  buyerName: string;
+  buyerEmoji: string;
+  buyerAvatar?: string;
+  recipients: RoundRecipient[];
+  occasion?: string;
+  note?: string;
+  /** Where this round came from, so the feed can be honest about it. */
+  source: 'me' | 'peer' | 'sample';
+}
+
 export interface AppState {
   me: Profile;
   peers: Peer[];
   /** Ids of peers currently selected for a coffee run. */
   runSelection: string[];
+  /** Newest first. */
+  rounds: Round[];
 }
 
 export function newId(): string {

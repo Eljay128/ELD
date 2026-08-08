@@ -1,5 +1,5 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
-import type { Order, Profile } from './types.ts';
+import type { Order, Profile, Round } from './types.ts';
 import type { DietTag } from '../catalog/types.ts';
 
 /**
@@ -15,6 +15,8 @@ import type { DietTag } from '../catalog/types.ts';
  */
 
 const PREFIX = 'PF1.';
+/** Rounds travel under their own prefix so a reader can tell the two apart. */
+const ROUNDS_PREFIX = 'PFR1.';
 
 /** Compact on-the-wire shape. Short keys keep QR codes scannable. */
 interface WireProfile {
@@ -22,6 +24,8 @@ interface WireProfile {
   n: string;
   h?: string;
   e: string;
+  /** Profile photo, already downscaled — see model/avatar.ts. */
+  g?: string;
   t?: string;
   d?: DietTag[];
   a?: string;
@@ -50,6 +54,7 @@ function toWire(p: Profile): WireProfile {
     n: p.name,
     ...(p.handle ? { h: p.handle } : {}),
     e: p.emoji,
+    ...(p.avatar ? { g: p.avatar } : {}),
     ...(p.tagline ? { t: p.tagline } : {}),
     ...(p.diet.length ? { d: p.diet } : {}),
     ...(p.allergyNote ? { a: p.allergyNote } : {}),
@@ -88,6 +93,7 @@ function fromWire(w: WireProfile): Profile {
     name: w.n,
     handle: w.h,
     emoji: w.e || '☕',
+    avatar: w.g,
     tagline: w.t,
     diet: w.d ?? [],
     allergyNote: w.a,
@@ -128,6 +134,16 @@ function b64urlToBytes(s: string): Uint8Array {
 }
 
 // --- public API -------------------------------------------------------------
+
+/**
+ * Encode without the photo. A profile carrying an image is several kilobytes,
+ * which is fine for a link but past what a QR code can hold — so the UI can
+ * offer a slimmed version rather than silently failing to render a QR.
+ */
+export function encodeProfileSlim(profile: Profile): string {
+  const { avatar: _omitted, ...rest } = profile;
+  return encodeProfile(rest);
+}
 
 export function encodeProfile(profile: Profile): string {
   const json = JSON.stringify(toWire(profile));
@@ -193,4 +209,65 @@ export function clearInbound(): void {
   if (typeof history !== 'undefined') {
     history.replaceState(null, '', location.pathname + location.search);
   }
+}
+
+// --- rounds -----------------------------------------------------------------
+
+interface WireRound {
+  i: string;
+  a: number;
+  b: string;
+  bn: string;
+  be: string;
+  r: { i: string; n: string; e: string; d: string; b: string; be: string }[];
+  o?: string;
+  m?: string;
+}
+
+/**
+ * Rounds are shared separately from profiles. A profile is who you are; a round
+ * is something that happened. Keeping them apart means a profile code stays
+ * small and stable no matter how much activity accumulates.
+ */
+export function encodeRounds(rounds: Round[]): string {
+  const wire: WireRound[] = rounds.map((r) => ({
+    i: r.id,
+    a: r.at,
+    b: r.buyerId,
+    bn: r.buyerName,
+    be: r.buyerEmoji,
+    r: r.recipients.map((x) => ({ i: x.id, n: x.name, e: x.emoji, d: x.drink, b: x.brand, be: x.brandEmoji })),
+    ...(r.occasion ? { o: r.occasion } : {}),
+    ...(r.note ? { m: r.note } : {}),
+  }));
+  const packed = deflateSync(strToU8(JSON.stringify(wire)), { level: 9 });
+  return ROUNDS_PREFIX + bytesToB64url(packed);
+}
+
+export function decodeRounds(code: string): Round[] {
+  const match = /PFR1\.[A-Za-z0-9_-]+/.exec(code.trim());
+  if (!match) throw new ShareCodeError('No Pourfolio activity code found in that text.');
+  let wire: WireRound[];
+  try {
+    const bytes = b64urlToBytes(match[0].slice(ROUNDS_PREFIX.length));
+    wire = JSON.parse(strFromU8(inflateSync(bytes)));
+  } catch {
+    throw new ShareCodeError('That activity code is damaged or incomplete.');
+  }
+  if (!Array.isArray(wire)) throw new ShareCodeError('That code is not a Pourfolio activity list.');
+  return wire.map((r) => ({
+    id: r.i,
+    at: r.a,
+    buyerId: r.b,
+    buyerName: r.bn,
+    buyerEmoji: r.be || '\u2615',
+    recipients: (r.r ?? []).map((x) => ({ id: x.i, name: x.n, emoji: x.e, drink: x.d, brand: x.b, brandEmoji: x.be })),
+    occasion: r.o,
+    note: r.m,
+    source: 'peer' as const,
+  }));
+}
+
+export function isRoundsCode(text: string): boolean {
+  return /PFR1\.[A-Za-z0-9_-]+/.test(text);
 }

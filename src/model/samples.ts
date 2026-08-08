@@ -1,4 +1,4 @@
-import type { Order, Profile } from './types.ts';
+import type { Order, Profile, Round } from './types.ts';
 import type { Daypart } from '../catalog/types.ts';
 
 /**
@@ -151,3 +151,91 @@ export const SAMPLE_PEERS: Profile[] = [
     ],
   },
 ];
+
+/**
+ * Example activity, so the feed shows what it is for before any real rounds
+ * exist. Timed relative to now so the feed reads as recent rather than frozen
+ * at some date in the past, and tagged `sample` so the UI can label them
+ * honestly rather than passing them off as real.
+ */
+export function sampleRounds(): Round[] {
+  const min = 60_000;
+  const now = Date.now();
+  return [
+    {
+      id: 'sample-round-1',
+      at: now - 14 * min,
+      buyerId: 'sample-marcus',
+      buyerName: 'Marcus',
+      buyerEmoji: '🍺',
+      source: 'sample',
+      occasion: 'meeting',
+      note: 'Standup ran long. Rescue mission.',
+      recipients: [
+        {
+          id: 'sample-priya',
+          name: 'Priya',
+          emoji: '🧋',
+          drink: 'Grande Iced Caramel Macchiato — Oat milk, Blonde Espresso, 1 shot, Vanilla, 2 pumps, No whipped cream',
+          brand: 'Starbucks',
+          brandEmoji: '🟢',
+        },
+        {
+          id: 'sample-eleanor',
+          name: 'Eleanor',
+          emoji: '🫖',
+          drink: 'Black tea — My usual mug, brew: Kettle and a tea bag, Whole milk, milk: A splash, steep: Strong — 5 minutes',
+          brand: 'At home & hosting',
+          brandEmoji: '🏠',
+        },
+      ],
+    },
+    {
+      id: 'sample-round-2',
+      at: now - 3 * 60 * min,
+      buyerId: 'sample-priya',
+      buyerName: 'Priya',
+      buyerEmoji: '🧋',
+      source: 'sample',
+      occasion: 'treat',
+      recipients: [
+        {
+          id: 'sample-marcus',
+          name: 'Marcus',
+          emoji: '🍺',
+          drink: 'Large Original Blend Coffee — Cream, Sugar, 2 sweeteners',
+          brand: "Dunkin'",
+          brandEmoji: '🟠',
+        },
+      ],
+    },
+    {
+      id: 'sample-round-3',
+      at: now - 26 * 60 * min,
+      buyerId: 'sample-eleanor',
+      buyerName: 'Eleanor',
+      buyerEmoji: '🫖',
+      source: 'sample',
+      occasion: 'hosting',
+      note: 'Everyone came round after the match.',
+      recipients: [
+        {
+          id: 'sample-priya',
+          name: 'Priya',
+          emoji: '🧋',
+          drink: 'Medium Brown Sugar Milk Tea — Oat milk, sweetness: 50% — half sweet, ice: 25% — light ice, Tapioca pearls (boba)',
+          brand: 'Boba & bubble tea',
+          brandEmoji: '🧋',
+        },
+        {
+          id: 'sample-marcus',
+          name: 'Marcus',
+          emoji: '🍺',
+          drink: 'Beer — draft — style: Refreshing & long, Pilsner + IPA — Hazy / New England',
+          brand: 'Bar & adult beverages',
+          brandEmoji: '🍸',
+        },
+      ],
+    },
+  ];
+}

@@ -4,7 +4,7 @@ import type { Circle, Peer } from '../model/types.ts';
 import { CIRCLES, DIET_FLAGS } from '../model/types.ts';
 import { loadSamplePeers, removePeer, setPeerCircle, toggleRunSelection } from '../model/store.ts';
 import { formatOrder, profileToText } from '../model/format.ts';
-import { CopyButton, Empty, Modal } from './ui.tsx';
+import { Avatar, CopyButton, Empty, Modal } from './ui.tsx';
 
 export function Peers({ peers, runSelection }: { peers: Peer[]; runSelection: string[] }) {
   const [filter, setFilter] = useState<Circle | 'all'>('all');
@@ -93,7 +93,7 @@ function PeerCard({ peer, selected, onOpen }: { peer: Peer; selected: boolean; o
   return (
     <div className="card" style={{ margin: 0 }}>
       <div className="card-head" style={{ marginBottom: 8 }}>
-        <span style={{ fontSize: '1.6rem' }}>{profile.emoji}</span>
+        <Avatar emoji={profile.emoji} src={profile.avatar} name={profile.name} size={44} />
         <div style={{ marginRight: 'auto', minWidth: 0 }}>
           <h3 style={{ overflowWrap: 'anywhere' }}>{profile.name || 'Unnamed'}</h3>
           {profile.handle && <div className="faint">{profile.handle}</div>}
@@ -161,7 +161,7 @@ export function PeerDetail({ peer, onClose }: { peer: Peer; onClose: () => void 
   const { profile } = peer;
   return (
     <Modal
-      title={`${profile.emoji} ${profile.name || 'Unnamed'}`}
+      title={`${profile.name || 'Unnamed'}`}
       onClose={onClose}
       footer={
         <>
@@ -171,7 +171,13 @@ export function PeerDetail({ peer, onClose }: { peer: Peer; onClose: () => void 
         </>
       }
     >
-      {profile.tagline && <p className="muted">{profile.tagline}</p>}
+      <div className="row" style={{ alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <Avatar emoji={profile.emoji} src={profile.avatar} name={profile.name} size={56} />
+        <div>
+          {profile.handle && <div className="faint">{profile.handle}</div>}
+          {profile.tagline && <div className="muted">{profile.tagline}</div>}
+        </div>
+      </div>
 
       {profile.allergyNote && (
         <div className="banner danger" style={{ marginBottom: 12 }}>

@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import type { AppState, Circle, Order, Peer, Profile } from './types.ts';
+import type { AppState, Circle, Order, Peer, Profile, Round } from './types.ts';
 import { emptyProfile, newId } from './types.ts';
-import { SAMPLE_PEERS } from './samples.ts';
+import { SAMPLE_PEERS, sampleRounds } from './samples.ts';
 import type { Daypart } from '../catalog/types.ts';
 import { groupsForDrink } from '../catalog/index.ts';
 
@@ -22,14 +22,19 @@ function load(): AppState {
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
       if (parsed?.me) {
-        return { me: parsed.me, peers: parsed.peers ?? [], runSelection: parsed.runSelection ?? [] };
+        return {
+          me: parsed.me,
+          peers: parsed.peers ?? [],
+          runSelection: parsed.runSelection ?? [],
+          rounds: parsed.rounds ?? [],
+        };
       }
     }
   } catch {
     // Corrupt or unreadable storage falls through to a fresh profile rather
     // than leaving the app stuck on a blank screen.
   }
-  return { me: emptyProfile(), peers: [], runSelection: [] };
+  return { me: emptyProfile(), peers: [], runSelection: [], rounds: [] };
 }
 
 function persist(): void {
@@ -44,7 +49,39 @@ function persist(): void {
 function set(next: AppState): void {
   state = next;
   persist();
+  emit();
+}
+
+function emit(): void {
   for (const l of listeners) l();
+}
+
+/**
+ * Live updates between windows.
+ *
+ * The `storage` event fires in *other* tabs of the same origin whenever this
+ * one writes, so two windows — or a laptop with the app open twice — stay in
+ * step with no server and no polling. This is the honest extent of "real time"
+ * for an app with no backend: instant within a device, and instant to a peer
+ * while a direct connection is open.
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY || e.newValue === null) return;
+    try {
+      const parsed = JSON.parse(e.newValue) as AppState;
+      if (!parsed?.me) return;
+      state = {
+        me: parsed.me,
+        peers: parsed.peers ?? [],
+        runSelection: parsed.runSelection ?? [],
+        rounds: parsed.rounds ?? [],
+      };
+      emit();
+    } catch {
+      // A half-written or foreign value is ignored rather than crashing the tab.
+    }
+  });
 }
 
 function subscribe(listener: () => void): () => void {
@@ -176,6 +213,7 @@ export function loadSamplePeers(): number {
     const { status } = importPeer(structuredClone(profile), 'sample', circles[i] ?? 'other');
     if (status === 'added' || status === 'updated') added++;
   }
+  receiveRounds(sampleRounds());
   return added;
 }
 
@@ -218,11 +256,47 @@ export function exportBackup(): string {
 export function importBackup(json: string): void {
   const parsed = JSON.parse(json) as AppState;
   if (!parsed?.me) throw new Error('That file does not contain a Pourfolio backup.');
-  set({ me: parsed.me, peers: parsed.peers ?? [], runSelection: [] });
+  set({ me: parsed.me, peers: parsed.peers ?? [], runSelection: [], rounds: parsed.rounds ?? [] });
 }
 
 export function resetAll(): void {
-  set({ me: emptyProfile(), peers: [], runSelection: [] });
+  set({ me: emptyProfile(), peers: [], runSelection: [], rounds: [] });
+}
+
+// --- rounds ----------------------------------------------------------------
+
+/** Newest first, and de-duplicated by id so a re-import cannot double up. */
+function mergeRounds(existing: Round[], incoming: Round[]): Round[] {
+  const byId = new Map(existing.map((r) => [r.id, r]));
+  for (const round of incoming) {
+    if (!byId.has(round.id)) byId.set(round.id, round);
+  }
+  return [...byId.values()].sort((a, b) => b.at - a.at);
+}
+
+export function addRound(round: Round): void {
+  set({ ...state, rounds: mergeRounds(state.rounds, [round]) });
+}
+
+/** Returns how many were genuinely new. */
+export function receiveRounds(rounds: Round[]): number {
+  const before = state.rounds.length;
+  const merged = mergeRounds(state.rounds, rounds);
+  if (merged.length === before) return 0;
+  set({ ...state, rounds: merged });
+  return merged.length - before;
+}
+
+export function deleteRound(id: string): void {
+  set({ ...state, rounds: state.rounds.filter((r) => r.id !== id) });
+}
+
+export function clearRounds(): void {
+  set({ ...state, rounds: [] });
+}
+
+export function loadSampleRounds(): number {
+  return receiveRounds(sampleRounds());
 }
 
 /** Convenience hook for actions that need the current state at call time. */

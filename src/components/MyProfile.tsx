@@ -8,7 +8,7 @@ import { dietConflicts, formatOrder, profileToText } from '../model/format.ts';
 import { encodeProfile } from '../model/share.ts';
 import { OrderEditor } from './OrderEditor.tsx';
 import { EditProfile } from './EditProfile.tsx';
-import { Empty, copyText } from './ui.tsx';
+import { Avatar, Empty, copyText } from './ui.tsx';
 
 type Filter = Daypart | 'all';
 
@@ -52,7 +52,7 @@ export function MyProfile({
           aria-label="Edit profile"
           title="Edit profile"
         >
-          <span aria-hidden="true">{me.emoji}</span>
+          <Avatar emoji={me.emoji} src={me.avatar} name={me.name} size={84} />
         </button>
 
         <div className="identity-text">
