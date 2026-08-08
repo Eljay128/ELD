@@ -2524,12 +2524,19 @@ function renderVideoQuality(q) {
   return box;
 }
 
-/* ---- body map geometry, traced from the silhouette --------------------- */
-const HORSE_BODY = "M105.19 2L106.29 4.2L108.12 2.37L107.39 7.12L110.68 10.42L114.34 17L118 21.03L118 22.86L116.54 25.05L113.24 25.79L112.15 23.96L109.22 21.76L103.36 19.2L100.8 19.56L98.97 22.13L97.51 29.08L95.68 33.47L96.04 41.89L94.58 43.35L94.58 44.45L92.02 50.3L87.99 48.47L86.16 49.94L86.16 51.4L78.85 49.57L68.23 49.57L59.82 47.74L49.21 48.47L47.38 46.64L44.81 49.21L33.84 49.57L35.67 44.45L35.67 35.67L38.59 31.27L37.86 30.54L37.13 30.91L32.74 37.86L28.71 41.15L25.79 41.52L27.62 40.06L27.62 38.59L16.64 42.98L13.71 46.28L13.71 44.08L15.91 41.89L15.54 41.15L13.34 41.89L10.05 44.81L6.76 46.28L2.73 46.64L6.39 44.08L2 44.08L4.56 43.35L9.68 40.42L4.93 38.59L10.05 38.23L12.98 37.13L8.95 35.67L5.66 31.64L8.22 33.84L11.15 34.93L15.17 34.57L14.81 33.84L11.15 32.37L7.85 28.71L7.12 26.52L10.05 28.71L15.17 30.18L20.66 29.81L25.05 26.15L29.81 23.96L32.74 23.96L40.42 28.35L49.57 25.42L62.38 26.88L68.97 26.88L80.68 21.76L83.6 18.83L83.24 18.1L81.04 19.56L78.11 19.93L84.7 15.54L81.41 15.54L88.73 11.88L84.33 11.88L90.19 10.05L90.92 9.32L90.56 8.95L87.99 8.95L95.31 7.85L95.31 7.12L93.85 6.76L98.97 6.76L99.7 6.03L97.87 5.29L103.36 5.29L104.83 2.37Z";
+/* ---- body map geometry ------------------------------------------------- */
+/* Standing horse for the body map: traced from a supplied line drawing with
+   tools/trace-silhouette.mjs --linework, mirrored to face the same way as the
+   trotting horse, with a mane fitted to the traced crest. */
+const HORSE_VIEWBOX = "0 0 120 88";
 
-const HORSE_LEGS = ["M75.7 47.48C75.7 53.48 75.7 55 76.5 58L75.8 70L75.9 72.6L81.1 72.6L81.2 70L82.5 58C83.3 55 85.3 53.48 85.3 47.48Z","M35.53 46.39C35.53 52.39 33.53 57 34.33 60L36.629999999999995 70L36.73 72.6L41.93 72.6L42.03 70L40.33 60C41.129999999999995 57 45.129999999999995 52.39 45.129999999999995 46.39Z","M88.5 44.38C88.5 50.38 89.5 56 90.3 59L90.6 70L90.7 72.6L95.89999999999999 72.6L96 70L96.3 59C97.1 56 98.1 50.38 98.1 44.38Z","M49.720000000000006 45.11C49.720000000000006 51.11 46.720000000000006 58 47.52 61L49.82 70L49.92 72.6L55.120000000000005 72.6L55.220000000000006 70L53.52 61C54.32 58 59.32 51.11 59.32 45.11Z"];
+const HORSE_BODY = "M95.03 2L90.51 2.17L83.64 4.01L78.61 6.36L72.24 9.88L71.73 9.88L71.57 10.21L66.03 11.72L61.68 14.07L57.32 15.58L54.47 15.91L50.45 15.75L36.03 13.06L28.99 12.9L25.8 13.4L22.12 14.57L21.95 14.91L21.28 14.91L19.94 15.75L19.43 15.75L19.27 16.08L18.76 16.08L18.43 16.58L17.25 16.92L14.07 19.27L12.56 21.45L12.56 22.62L11.72 22.79L8.71 29.83L8.2 31.5L8.54 32.17L8.54 34.02L8.2 34.35L7.53 34.35L7.53 34.86L8.03 35.02L7.87 38.21L6.69 38.38L6.69 39.88L6.36 40.05L6.36 45.58L5.86 47.26L5.86 56.48L5.52 57.82L5.35 61.84L6.02 65.87L7.87 66.03L7.87 68.38L6.19 74.42L6.19 75.09L7.03 76.6L7.53 78.44L7.53 80.28L6.69 81.46L6.69 82.13L7.03 82.97L7.7 83.47L7.7 85.14L2 85.82L5.86 85.48L16.92 85.31L12.73 85.14L12.73 82.97L12.23 80.79L11.05 78.1L11.05 75.42L11.55 73.58L11.55 71.4L12.23 67.54L12.73 66.37L15.24 66.03L15.41 60.17L15.91 59.5L17.92 59.66L18.6 64.19L20.1 70.06L20.44 75.25L20.94 76.6L22.28 77.43L23.12 78.61L23.29 81.96L23.79 82.46L24.63 82.63L28.32 82.46L29.32 81.96L29.32 81.12L28.15 78.77L25.47 75.92L24.29 72.4L23.12 66.71L22.79 61.68L24.29 55.31L27.82 46.09L30.5 41.9L33.18 39.05L35.86 39.05L37.71 39.55L46.76 43.07L50.95 44.24L53.13 44.58L56.98 44.58L58.66 44.24L67.04 44.41L67.38 44.75L67.38 46.59L66.54 50.11L65.7 57.32L65.03 58.99L65.03 62.68L63.86 68.05L62.35 72.74L62.35 73.91L63.86 76.09L63.86 78.1L63.35 78.77L63.52 80.12L64.19 80.95L65.53 81.29L69.05 81.29L69.55 80.95L69.05 79.11L67.21 76.6L66.37 74.58L66.37 70.39L66.71 70.23L66.71 68.72L67.88 64.86L69.89 61.01L71.4 54.3L73.24 54.13L73.58 55.98L73.41 62.01L73.91 62.85L74.25 64.53L74.25 75.25L74.58 75.92L77.43 78.44L77.43 80.45L78.27 81.62L78.94 81.96L83.3 81.96L83.8 81.62L83.8 80.62L82.97 79.45L79.61 76.26L78.77 74.75L77.94 70.9L77.94 65.03L78.44 63.52L78.44 61.34L78.77 60.67L78.77 55.81L80.79 46.92L81.12 43.91L84.31 41.06L86.15 38.21L87.32 34.18L87.99 28.99L91.51 24.29L95.54 19.77L97.05 18.6L99.39 18.43L100.06 18.93L100.57 20.61L102.24 22.79L102.41 25.47L102.91 26.81L103.08 30.5L104.09 31.17L104.59 32.17L105.43 32.17L106.77 33.18L109.62 32.17L110.46 30.83L110.46 29.49L110.79 28.99L110.79 27.48L111.63 24.63L111.63 23.29L111.97 22.95L111.97 21.61L112.3 21.45L112.3 20.27L113.14 18.09L113.14 15.75L113.47 15.58L113.98 11.05L115.82 10.72L118 9.21L117.16 8.37L115.82 8.71L112.97 8.71L112.3 7.87L110.12 6.53L109.79 6.02L103.58 3.34L98.22 2.17L95.2 2.17Z";
 
-const BODY_ZONES = {"fore foot":[93,71.5,5],"fore pastern":[93,67,4],"fore cannon":[93,62,5],"knee":[93,57.5,4.5],"shoulder":[88,40,8],"hind foot":[50,71.5,5],"hind pastern":[50,67,4],"hind cannon":[50.5,63,5],"hock":[51,58,5.5],"stifle":[58,47,6],"hip":[33,34,8],"sacroiliac":[32,28,6],"back":[52,29,9],"neck":[94,22,8.5]};
+/* Mane and forelock: separate paths so the silhouette stays one closed shape. */
+const HORSE_PARTS = ["M95.03 2L90.51 2.17L83.64 4.01L78.61 6.36L72.24 9.88L71.73 9.88L71.57 10.21L66.03 11.72L61.68 14.07L57.32 15.58L57.77 16.87L62.33 15.53L67.14 14.57L73.2 15.25L74.13 14.75L75.34 15.93L81.14 11.28L85.48 9.23L91.09 5.47L95.09 3.6Z","M94.03 2.5 C98.53 1.5 101.03 4.5 100.53 8 C99.43 6 98.03 4.6 94.03 4.6 Z"];
+
+const BODY_ZONES = {"fore foot":[77,71,5],"fore pastern":[77,66,4],"fore cannon":[77,60,5],"knee":[77,52,5],"shoulder":[70,34,8],"hind foot":[25,72,5],"hind pastern":[25,67,4],"hind cannon":[23,62,5],"hock":[20,56,6],"stifle":[29,46,6],"hip":[16,26,9],"sacroiliac":[20,16,6],"back":[41,18,9],"neck":[80,13,8]};
+
 /**
  * Body map: where each candidate diagnosis sits, shaded by how likely it is.
  *
@@ -2566,14 +2573,14 @@ function renderBodyMap(differential) {
   };
 
   const box = el('div', 'bodymap');
-  const svg = make('svg', { viewBox: '0 0 120 78', class: 'bodymap-svg', role: 'img' });
+  const svg = make('svg', { viewBox: HORSE_VIEWBOX, class: 'bodymap-svg', role: 'img' });
   svg.setAttribute('aria-label', placed.length
     ? `Body diagram: ${placed.map((d) => d.bodyZone).join(', ')} highlighted`
     : 'Body diagram with no region highlighted');
 
   const defs = make('defs', {});
   const clip = make('clipPath', { id: 'bodymap-clip' });
-  for (const d of [HORSE_BODY, ...HORSE_LEGS]) clip.append(make('path', { d }));
+  for (const d of [HORSE_BODY, ...HORSE_PARTS]) clip.append(make('path', { d }));
   defs.append(clip);
 
   placed.forEach((dx, i) => {
@@ -2588,7 +2595,7 @@ function renderBodyMap(differential) {
 
   // The blank horse, always drawn, so the shape reads even with nothing marked.
   const silhouette = make('g', { class: 'bodymap-hide' });
-  for (const d of [...HORSE_LEGS, HORSE_BODY]) silhouette.append(make('path', { d }));
+  for (const d of [HORSE_BODY, ...HORSE_PARTS]) silhouette.append(make('path', { d }));
   svg.append(silhouette);
 
   // Systemic candidates tint the whole animal rather than one spot.
@@ -2598,7 +2605,7 @@ function renderBodyMap(differential) {
       fill: likelihoodColor(dx.likelihoodRating),
       opacity: '0.3',
     });
-    for (const d of [...HORSE_LEGS, HORSE_BODY]) tint.append(make('path', { d }));
+    for (const d of [HORSE_BODY, ...HORSE_PARTS]) tint.append(make('path', { d }));
     svg.append(tint);
   }
 
