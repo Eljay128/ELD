@@ -160,6 +160,10 @@ Rules:
   explained the first time they appear.
 - Be honest in limitations. This is a screening aid built on still frames, not a diagnosis.
 - Write in US English throughout: "analyzed", "optimization", "color", "behavior".
+- bodyZone places each candidate on a body diagram, so pick the fixed value that best matches the
+  region you named. Use "whole horse" only for something genuinely systemic, and "not localized"
+  only when the region really cannot be pinned down — a candidate with neither sits nowhere on the
+  diagram and is invisible to the reader.
 - limbLoading drives a chart, so fill all four limbs every time, in the order left fore, right fore,
   left hind, right hind. "loading" is a coarse eyeball estimate of how normally each limb loads:
   100 for a limb that lands and bears weight normally, lower for one being spared. You are reading

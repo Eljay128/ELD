@@ -194,6 +194,7 @@ const PROPERTIES = {
         'rank',
         'condition',
         'region',
+        'bodyZone',
         'likelihood',
         'likelihoodRating',
         'rationale',
@@ -206,6 +207,19 @@ const PROPERTIES = {
         rank: { type: 'integer', description: '1 is the most likely.' },
         condition: { type: 'string' },
         region: { type: 'string', description: 'Anatomic region, e.g. "left front foot".' },
+        bodyZone: {
+          type: 'string',
+          description:
+            'The same region as one of these fixed values, which position this condition on the body ' +
+            'diagram. Pick the single best fit. Use "whole horse" for something systemic and ' +
+            '"not localized" when the region genuinely cannot be pinned down.',
+          enum: [
+            'fore foot', 'fore pastern', 'fore cannon', 'knee', 'shoulder',
+            'hind foot', 'hind pastern', 'hind cannon', 'hock', 'stifle',
+            'hip', 'sacroiliac', 'back', 'neck',
+            'whole horse', 'not localized',
+          ],
+        },
         likelihood: {
           type: 'string',
           enum: ['most likely', 'likely', 'possible', 'less likely', 'unlikely but important to exclude'],

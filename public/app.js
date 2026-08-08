@@ -279,6 +279,9 @@ function renderReport({ report, observation, sources, meta }) {
   }
   root.append(strip);
 
+  const map = renderBodyMap(report.differential);
+  if (map) root.append(map);
+
   const controls = el('div', 'sec-controls');
   const toggle = el('button', 'link-btn', 'Expand all');
   toggle.type = 'button';
@@ -386,6 +389,134 @@ function renderVideoQuality(q) {
   if (q.suggestions?.length) {
     box.append(el('h5', null, 'For a better clip next time'), list(q.suggestions, 'obs-list'));
   }
+  return box;
+}
+
+/* ---- body map geometry, traced from the silhouette --------------------- */
+const HORSE_BODY = "M105.19 2L106.29 4.2L108.12 2.37L107.39 7.12L110.68 10.42L114.34 17L118 21.03L118 22.86L116.54 25.05L113.24 25.79L112.15 23.96L109.22 21.76L103.36 19.2L100.8 19.56L98.97 22.13L97.51 29.08L95.68 33.47L96.04 41.89L94.58 43.35L94.58 44.45L92.02 50.3L87.99 48.47L86.16 49.94L86.16 51.4L78.85 49.57L68.23 49.57L59.82 47.74L49.21 48.47L47.38 46.64L44.81 49.21L33.84 49.57L35.67 44.45L35.67 35.67L38.59 31.27L37.86 30.54L37.13 30.91L32.74 37.86L28.71 41.15L25.79 41.52L27.62 40.06L27.62 38.59L16.64 42.98L13.71 46.28L13.71 44.08L15.91 41.89L15.54 41.15L13.34 41.89L10.05 44.81L6.76 46.28L2.73 46.64L6.39 44.08L2 44.08L4.56 43.35L9.68 40.42L4.93 38.59L10.05 38.23L12.98 37.13L8.95 35.67L5.66 31.64L8.22 33.84L11.15 34.93L15.17 34.57L14.81 33.84L11.15 32.37L7.85 28.71L7.12 26.52L10.05 28.71L15.17 30.18L20.66 29.81L25.05 26.15L29.81 23.96L32.74 23.96L40.42 28.35L49.57 25.42L62.38 26.88L68.97 26.88L80.68 21.76L83.6 18.83L83.24 18.1L81.04 19.56L78.11 19.93L84.7 15.54L81.41 15.54L88.73 11.88L84.33 11.88L90.19 10.05L90.92 9.32L90.56 8.95L87.99 8.95L95.31 7.85L95.31 7.12L93.85 6.76L98.97 6.76L99.7 6.03L97.87 5.29L103.36 5.29L104.83 2.37Z";
+
+const HORSE_LEGS = ["M75.7 47.48C75.7 53.48 75.7 55 76.5 58L75.8 70L75.9 72.6L81.1 72.6L81.2 70L82.5 58C83.3 55 85.3 53.48 85.3 47.48Z","M35.53 46.39C35.53 52.39 33.53 57 34.33 60L36.629999999999995 70L36.73 72.6L41.93 72.6L42.03 70L40.33 60C41.129999999999995 57 45.129999999999995 52.39 45.129999999999995 46.39Z","M88.5 44.38C88.5 50.38 89.5 56 90.3 59L90.6 70L90.7 72.6L95.89999999999999 72.6L96 70L96.3 59C97.1 56 98.1 50.38 98.1 44.38Z","M49.720000000000006 45.11C49.720000000000006 51.11 46.720000000000006 58 47.52 61L49.82 70L49.92 72.6L55.120000000000005 72.6L55.220000000000006 70L53.52 61C54.32 58 59.32 51.11 59.32 45.11Z"];
+
+const BODY_ZONES = {"fore foot":[93,71.5,5],"fore pastern":[93,67,4],"fore cannon":[93,62,5],"knee":[93,57.5,4.5],"shoulder":[88,40,8],"hind foot":[50,71.5,5],"hind pastern":[50,67,4],"hind cannon":[50.5,63,5],"hock":[51,58,5.5],"stifle":[58,47,6],"hip":[33,34,8],"sacroiliac":[32,28,6],"back":[52,29,9],"neck":[94,22,8.5]};
+/**
+ * Body map: where each candidate diagnosis sits, shaded by how likely it is.
+ *
+ * A side view cannot show left from right, and pretending otherwise would be
+ * worse than not showing it — so laterality is left to the limb chart and this
+ * answers only "whereabouts in the horse". Zones come from a fixed list the
+ * model picks from, rather than being guessed out of free text, so a blob
+ * cannot land on the wrong leg.
+ */
+const ZONE_ALIASES = { 'whole horse': null, 'not localized': null };
+
+/** Dark red at high confidence through to pink at low. */
+function likelihoodColor(rating) {
+  const t = Math.max(0, Math.min(1, (Number(rating) || 0) / 100));
+  const high = [140, 29, 19];
+  const low = [242, 184, 198];
+  const mix = high.map((h, i) => Math.round(low[i] + (h - low[i]) * t));
+  return `rgb(${mix.join(' ')})`;
+}
+
+function renderBodyMap(differential) {
+  const placed = (differential ?? [])
+    .filter((d) => d.bodyZone && !(d.bodyZone in ZONE_ALIASES) && BODY_ZONES[d.bodyZone])
+    .slice()
+    // Least likely first so the strongest candidate ends up on top.
+    .sort((a, b) => (a.likelihoodRating ?? 0) - (b.likelihoodRating ?? 0));
+  const systemic = (differential ?? []).filter((d) => d.bodyZone === 'whole horse');
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const make = (tag, attrs) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    return n;
+  };
+
+  const box = el('div', 'bodymap');
+  const svg = make('svg', { viewBox: '0 0 120 78', class: 'bodymap-svg', role: 'img' });
+  svg.setAttribute('aria-label', placed.length
+    ? `Body diagram: ${placed.map((d) => d.bodyZone).join(', ')} highlighted`
+    : 'Body diagram with no region highlighted');
+
+  const defs = make('defs', {});
+  const clip = make('clipPath', { id: 'bodymap-clip' });
+  for (const d of [HORSE_BODY, ...HORSE_LEGS]) clip.append(make('path', { d }));
+  defs.append(clip);
+
+  placed.forEach((dx, i) => {
+    const grad = make('radialGradient', { id: `bmg${i}` });
+    const c = likelihoodColor(dx.likelihoodRating);
+    grad.append(make('stop', { offset: '0%', 'stop-color': c, 'stop-opacity': '0.95' }));
+    grad.append(make('stop', { offset: '55%', 'stop-color': c, 'stop-opacity': '0.55' }));
+    grad.append(make('stop', { offset: '100%', 'stop-color': c, 'stop-opacity': '0' }));
+    defs.append(grad);
+  });
+  svg.append(defs);
+
+  // The blank horse, always drawn, so the shape reads even with nothing marked.
+  const silhouette = make('g', { class: 'bodymap-hide' });
+  for (const d of [...HORSE_LEGS, HORSE_BODY]) silhouette.append(make('path', { d }));
+  svg.append(silhouette);
+
+  // Systemic candidates tint the whole animal rather than one spot.
+  for (const dx of systemic) {
+    const tint = make('g', {
+      class: 'bodymap-systemic',
+      fill: likelihoodColor(dx.likelihoodRating),
+      opacity: '0.3',
+    });
+    for (const d of [...HORSE_LEGS, HORSE_BODY]) tint.append(make('path', { d }));
+    svg.append(tint);
+  }
+
+  const marks = make('g', { 'clip-path': 'url(#bodymap-clip)' });
+  placed.forEach((dx, i) => {
+    const [x, y, r] = BODY_ZONES[dx.bodyZone];
+    marks.append(make('circle', { cx: x, cy: y, r: r * 1.9, fill: `url(#bmg${i})` }));
+  });
+  svg.append(marks);
+
+  // A ring on the leading candidate, so the eye lands on it first.
+  const top = placed[placed.length - 1];
+  if (top) {
+    const [x, y, r] = BODY_ZONES[top.bodyZone];
+    svg.append(make('circle', {
+      cx: x, cy: y, r: r * 1.15, class: 'bodymap-ring',
+      stroke: likelihoodColor(top.likelihoodRating),
+    }));
+  }
+  box.append(svg);
+
+  const legend = el('div', 'bodymap-legend');
+  legend.append(el('span', null, 'least likely'));
+  legend.append(el('span', 'bodymap-ramp'));
+  legend.append(el('span', null, 'most likely'));
+  box.append(legend);
+
+  const keyed = [...placed, ...systemic].sort(
+    (a, b) => (b.likelihoodRating ?? 0) - (a.likelihoodRating ?? 0),
+  );
+  if (keyed.length) {
+    const ul = el('ul', 'bodymap-key');
+    for (const dx of keyed) {
+      const li = el('li');
+      const dot = el('span', 'bodymap-dot');
+      dot.style.background = likelihoodColor(dx.likelihoodRating);
+      li.append(dot, el('span', 'bodymap-zone', dx.bodyZone), el('span', 'bodymap-cond', dx.condition),
+        el('span', 'bodymap-pct', `${dx.likelihoodRating}%`));
+      ul.append(li);
+    }
+    box.append(ul);
+  }
+
+  const unplaced = (differential ?? []).filter((d) => d.bodyZone === 'not localized');
+  const note = keyed.length
+    ? 'Where each candidate sits, shaded by the model’s confidence. A side view cannot show left from right — the limb chart below does that.'
+    : 'Nothing in the differential could be pinned to a region of the body.';
+  box.append(el('p', 'bodymap-note', unplaced.length
+    ? `${note} Not shown, because ${unplaced.length === 1 ? 'it is not' : 'they are not'} tied to one place: ${unplaced.map((d) => d.condition).join('; ')}.`
+    : note));
   return box;
 }
 

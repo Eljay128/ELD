@@ -298,6 +298,59 @@ textarea { resize: vertical; }
   text-transform: none; letter-spacing: -0.01em; color: var(--ink);
 }
 .working-note { color: var(--ink-2); max-width: 48ch; margin: 7px auto 24px; font-size: 0.9rem; }
+/* ---- body map ---------------------------------------------------------- */
+/* Opens the report: a blank horse with each candidate shaded where it sits,
+   dark red at high confidence through to pink at low. */
+.bodymap {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px 14px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.bodymap-svg { display: block; width: 100%; max-width: 460px; margin: 0 auto; height: auto; }
+/* The blank horse has to read clearly against the card before anything is
+   shaded on it, so it takes the strong line tone rather than the panel tone. */
+.bodymap-hide path { fill: var(--line-strong); }
+.bodymap-hide { opacity: 0.5; }
+.bodymap-ring { fill: none; stroke-width: 0.7; opacity: 0.85; }
+
+.bodymap-legend {
+  display: flex; align-items: center; gap: 9px;
+  max-width: 320px; margin: 4px auto 0;
+  font-size: 0.68rem; color: var(--ink-3);
+  font-family: var(--label); letter-spacing: 0.04em;
+}
+.bodymap-ramp {
+  flex: 1; height: 7px; border-radius: 1px;
+  background: linear-gradient(90deg, rgb(242 184 198), rgb(140 29 19));
+}
+
+.bodymap-key { list-style: none; margin: 14px 0 0; padding: 0; }
+.bodymap-key li {
+  display: grid;
+  grid-template-columns: 11px 6.4rem 1fr auto;
+  align-items: baseline; gap: 9px;
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.84rem;
+}
+.bodymap-dot { width: 11px; height: 11px; border-radius: 50%; align-self: center; }
+.bodymap-zone {
+  font-family: var(--label); font-size: 0.66rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3);
+}
+.bodymap-cond { color: var(--ink); }
+.bodymap-pct { color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: 0.8rem; }
+.bodymap-note { margin: 12px 0 0; font-size: 0.78rem; line-height: 1.5; color: var(--ink-3); }
+
+@media (max-width: 560px) {
+  .bodymap { padding: 13px 13px 11px; }
+  .bodymap-key li { grid-template-columns: 10px 1fr auto; row-gap: 1px; }
+  .bodymap-zone { grid-column: 2 / -1; order: -1; }
+}
+
 /* ---- limb loading chart ------------------------------------------------ */
 /* Bars are the model's visual estimate, so an unassessable limb is drawn as an
    empty hatched track. Showing it at full length would read as "normal", which
