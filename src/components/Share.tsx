@@ -3,7 +3,7 @@ import jsQR from 'jsqr';
 import type { AppState, Circle } from '../model/types.ts';
 import { CIRCLES } from '../model/types.ts';
 import { ShareCodeError, decodeProfile, encodeProfile, encodeProfileSlim, shareLink } from '../model/share.ts';
-import { importPeer } from '../model/store.ts';
+import { importPeerVerified } from '../model/store.ts';
 import { profileToText } from '../model/format.ts';
 import { CopyButton, Field, Group, QR } from './ui.tsx';
 import { P2PPanel } from './P2P.tsx';
@@ -101,10 +101,10 @@ function ImportCard({ onImported }: { onImported: (msg: string) => void }) {
   const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const doImport = (raw: string, source: 'code' | 'file' | 'qr') => {
+  const doImport = async (raw: string, source: 'code' | 'file' | 'qr') => {
     try {
       const profile = decodeProfile(raw);
-      const { status, peer } = importPeer(profile, source, circle);
+      const { status, peer } = await importPeerVerified(profile, source, circle);
       setError(null);
       setText('');
       onImported(
@@ -155,7 +155,7 @@ function ImportCard({ onImported }: { onImported: (msg: string) => void }) {
         )}
 
         <div className="row">
-          <button className="btn primary" disabled={!text.trim()} onClick={() => doImport(text, 'code')}>
+          <button className="btn primary" disabled={!text.trim()} onClick={() => void doImport(text, 'code')}>
             Import
           </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>
@@ -172,13 +172,13 @@ function ImportCard({ onImported }: { onImported: (msg: string) => void }) {
             onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
-              doImport(await file.text(), 'file');
+              await doImport(await file.text(), 'file');
               e.target.value = '';
             }}
           />
         </div>
 
-        {scanning && <QrScanner onFound={(raw) => { setScanning(false); doImport(raw, 'qr'); }} onError={setError} />}
+        {scanning && <QrScanner onFound={(raw) => { setScanning(false); void doImport(raw, 'qr'); }} onError={setError} />}
       </div>
     </div>
   );

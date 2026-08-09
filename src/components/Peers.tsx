@@ -4,7 +4,7 @@ import type { Circle, Peer } from '../model/types.ts';
 import { CIRCLES, DIET_FLAGS } from '../model/types.ts';
 import { loadSamplePeers, removePeer, setPeerCircle, toggleRunSelection } from '../model/store.ts';
 import { formatOrder, profileToText } from '../model/format.ts';
-import { Avatar, CopyButton, Empty, Modal } from './ui.tsx';
+import { Avatar, CopyButton, Empty, Modal, VerificationTag } from './ui.tsx';
 
 export function Peers({ peers, runSelection }: { peers: Peer[]; runSelection: string[] }) {
   const [filter, setFilter] = useState<Circle | 'all'>('all');
@@ -97,6 +97,9 @@ function PeerCard({ peer, selected, onOpen }: { peer: Peer; selected: boolean; o
         <div style={{ marginRight: 'auto', minWidth: 0 }}>
           <h3 style={{ overflowWrap: 'anywhere' }}>{profile.name || 'Unnamed'}</h3>
           {profile.handle && <div className="faint">{profile.handle}</div>}
+          <div style={{ marginTop: 3 }}>
+            <VerificationTag verification={peer.verification} />
+          </div>
         </div>
       </div>
 
@@ -176,6 +179,9 @@ export function PeerDetail({ peer, onClose }: { peer: Peer; onClose: () => void 
         <div>
           {profile.handle && <div className="faint">{profile.handle}</div>}
           {profile.tagline && <div className="muted">{profile.tagline}</div>}
+          <div style={{ marginTop: 4 }}>
+            <VerificationTag verification={peer.verification} />
+          </div>
         </div>
       </div>
 
@@ -239,6 +245,19 @@ export function PeerDetail({ peer, onClose }: { peer: Peer; onClose: () => void 
           </section>
         );
       })}
+
+      {peer.verification === 'invalid' && (
+        <div className="banner danger" style={{ marginTop: 12 }}>
+          <span>⚠️</span>
+          <div>
+            <strong>This profile's signature does not check out.</strong>
+            <div>
+              It was signed, and the signature is wrong — which means it was altered after signing, or it is not from who
+              it claims. Do not act on anything in it.
+            </div>
+          </div>
+        </div>
+      )}
 
       {profile.orders.length === 0 && <p className="muted">They have not added any drinks yet.</p>}
 

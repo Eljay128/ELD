@@ -1,6 +1,8 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
 import type { Order, Profile, Round } from './types.ts';
 import type { DietTag } from '../catalog/types.ts';
+import type { SigAlg, Verification } from './identity.ts';
+import { verifyOwnership } from './identity.ts';
 
 /**
  * Share encoding.
@@ -33,6 +35,11 @@ interface WireProfile {
   o: WireOrder[];
   v: number;
   u: number;
+  /** Identity — see model/identity.ts. Excluded from the signed payload. */
+  pk?: string;
+  sa?: SigAlg;
+  sg?: string;
+  sv?: number;
 }
 
 interface WireOrder {
@@ -73,7 +80,26 @@ function toWire(p: Profile): WireProfile {
     })),
     v: p.version,
     u: p.updatedAt,
+    ...(p.publicKey ? { pk: p.publicKey } : {}),
+    ...(p.sigAlg ? { sa: p.sigAlg } : {}),
+    ...(p.signature ? { sg: p.signature } : {}),
+    ...(p.sigVersion !== undefined ? { sv: p.sigVersion } : {}),
   };
+}
+
+/**
+ * Exactly the bytes a signature covers: the whole wire profile minus the
+ * signature fields themselves. Both signer and verifier build this the same
+ * way, and `canonical()` sorts keys so serialisation order cannot diverge.
+ */
+export function signedProfilePayload(p: Profile): object {
+  const { pk: _pk, sa: _sa, sg: _sg, sv: _sv, ...rest } = toWire(p);
+  return rest;
+}
+
+/** Verify a decoded profile against the key it carries. */
+export function verifyProfile(p: Profile): Promise<Verification> {
+  return verifyOwnership(signedProfilePayload(p), p.signature, p.publicKey, p.sigAlg, p.id);
 }
 
 /** Drop empty selections so they do not bloat the code. */
@@ -112,6 +138,10 @@ function fromWire(w: WireProfile): Profile {
     })),
     version: w.v ?? 1,
     updatedAt: w.u ?? Date.now(),
+    publicKey: w.pk,
+    sigAlg: w.sa,
+    signature: w.sg,
+    sigVersion: w.sv,
   };
 }
 
@@ -222,6 +252,9 @@ interface WireRound {
   r: { i: string; n: string; e: string; d: string; b: string; be: string }[];
   o?: string;
   m?: string;
+  pk?: string;
+  sa?: SigAlg;
+  sg?: string;
 }
 
 /**
@@ -239,6 +272,9 @@ export function encodeRounds(rounds: Round[]): string {
     r: r.recipients.map((x) => ({ i: x.id, n: x.name, e: x.emoji, d: x.drink, b: x.brand, be: x.brandEmoji })),
     ...(r.occasion ? { o: r.occasion } : {}),
     ...(r.note ? { m: r.note } : {}),
+    ...(r.publicKey ? { pk: r.publicKey } : {}),
+    ...(r.sigAlg ? { sa: r.sigAlg } : {}),
+    ...(r.signature ? { sg: r.signature } : {}),
   }));
   const packed = deflateSync(strToU8(JSON.stringify(wire)), { level: 9 });
   return ROUNDS_PREFIX + bytesToB64url(packed);
@@ -264,10 +300,33 @@ export function decodeRounds(code: string): Round[] {
     recipients: (r.r ?? []).map((x) => ({ id: x.i, name: x.n, emoji: x.e, drink: x.d, brand: x.b, brandEmoji: x.be })),
     occasion: r.o,
     note: r.m,
+    publicKey: r.pk,
+    sigAlg: r.sa,
+    signature: r.sg,
     source: 'peer' as const,
   }));
 }
 
 export function isRoundsCode(text: string): boolean {
   return /PFR1\.[A-Za-z0-9_-]+/.test(text);
+}
+
+/**
+ * The bytes a round's signature covers. Mirrors `signedProfilePayload`: the
+ * wire form minus the signature fields, canonicalised by the verifier.
+ */
+export function signedRoundPayload(r: Round): object {
+  const {
+    signature: _sig,
+    publicKey: _pk,
+    sigAlg: _alg,
+    verification: _v,
+    source: _s,
+    ...rest
+  } = r;
+  return rest;
+}
+
+export function verifyRound(r: Round): Promise<Verification> {
+  return verifyOwnership(signedRoundPayload(r), r.signature, r.publicKey, r.sigAlg, r.buyerId);
 }

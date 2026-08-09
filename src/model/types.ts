@@ -1,4 +1,5 @@
 import type { Daypart, DietTag } from '../catalog/types.ts';
+import type { SigAlg, Verification } from './identity.ts';
 
 /** A single saved drink order inside a profile. */
 export interface Order {
@@ -76,11 +77,22 @@ export interface Profile {
   /** Bumped on every edit so peers can tell which copy is newer. */
   version: number;
   updatedAt: number;
+
+  // --- identity ------------------------------------------------------------
+  /** Raw public key, base64url. Present once this profile has been signed. */
+  publicKey?: string;
+  sigAlg?: SigAlg;
+  /** Signature over the profile's canonical form, excluding these four fields. */
+  signature?: string;
+  /** The `version` the signature was made over — a dirty flag for re-signing. */
+  sigVersion?: number;
 }
 
 /** A peer's profile as stored locally, plus how it got here. */
 export interface Peer {
   profile: Profile;
+  /** Checked once at import, when the signature and key are both to hand. */
+  verification: Verification;
   /** How the member labels this person: friend, family, coworker… */
   circle: Circle;
   importedAt: number;
@@ -128,6 +140,12 @@ export interface Round {
   note?: string;
   /** Where this round came from, so the feed can be honest about it. */
   source: 'me' | 'peer' | 'sample';
+
+  /** Signed by the buyer, so a round cannot be published in someone's name. */
+  publicKey?: string;
+  sigAlg?: SigAlg;
+  signature?: string;
+  verification?: Verification;
 }
 
 export interface AppState {

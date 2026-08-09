@@ -181,6 +181,18 @@ try {
   await ada.page.keyboard.press('Escape');
   check('overflow menu closes on Escape', (await ada.page.locator('.menu[role="menu"]').count()) === 0);
 
+  // --- Identity ------------------------------------------------------------
+  // The whole point of a key is that it is unforgeable, so the checks below
+  // actually tamper with a code and confirm the app notices.
+  await ada.page.getByRole('button', { name: 'Settings' }).click();
+  const fingerprint = await ada.page.locator('table.stats .mono').first().textContent();
+  check('a signing key is generated on first run', /^[A-Za-z0-9_-]{16}$/.test(fingerprint ?? ''), fingerprint);
+  const profileId = await ada.page.locator('table.stats .mono').nth(1).textContent();
+  await ada.page.getByRole('button', { name: 'My profile' }).click();
+  const ownBadge = await ada.page.locator('.identity-sub .tag').first().textContent();
+  check('a profile created today is fully verified', /Verified/.test(ownBadge ?? ''), ownBadge);
+  check('a new profile adopts its key fingerprint as its ID', profileId?.trim() === fingerprint?.trim(), `${profileId} vs ${fingerprint}`);
+
   // --- Profile picture -----------------------------------------------------
   // A real PNG, uploaded through the actual file input, so the whole downscale
   // and re-encode path runs rather than being stubbed.
@@ -262,6 +274,8 @@ try {
   check('peer card shows the exact drink', /Caffè Latte/.test(detail) && /Oat milk/i.test(detail));
   check('peer card shows the allergy note', /Tree nut allergy/.test(detail));
   check('profile picture travels in the share link', (await bo.page.locator('.modal .avatar-img').count()) > 0);
+  const peerBadge = await bo.page.locator('.modal .tag', { hasText: /Verified|Unconfirmed|Bad signature/ }).first().textContent();
+  check('an imported profile verifies against its own key', /Verified/.test(peerBadge ?? ''), peerBadge);
   check('adult beverage came across', /Negroni/.test(detail));
   await bo.page.keyboard.press('Escape');
   await bo.page.waitForSelector('.modal', { state: 'detached' });
@@ -287,6 +301,27 @@ try {
   check('re-importing the same profile does not duplicate', /already up to date/i.test(toast), toast);
   await bo.page.getByRole('button', { name: /^People/ }).click();
   check('peer list still has exactly one Ada', (await bo.page.locator('.card', { hasText: 'Ada' }).count()) === 1);
+
+  // --- A tampered code must not pass verification --------------------------
+  // Flip one character in the middle of the payload. Deflate will usually still
+  // inflate to *something*, but the signature can no longer match.
+  const tampered = (() => {
+    const code = link.slice(link.indexOf('PF1.'));
+    const at = Math.floor(code.length * 0.7);
+    const swap = code[at] === 'A' ? 'B' : 'A';
+    return code.slice(0, at) + swap + code.slice(at + 1);
+  })();
+  await bo.page.getByRole('button', { name: 'Share', exact: true }).click();
+  await bo.page.locator('textarea.code').last().fill(tampered);
+  await bo.page.getByRole('button', { name: 'Import', exact: true }).click();
+  await bo.page.waitForTimeout(400);
+  const tamperOutcome = await bo.page.locator('.banner.danger, .toast').first().textContent();
+  check(
+    'a tampered share code is rejected or flagged, never silently trusted',
+    /damaged|incomplete|not a|Bad signature/i.test(tamperOutcome ?? '') ||
+      (await bo.page.locator('.tag.danger', { hasText: 'Bad signature' }).count()) > 0,
+    tamperOutcome?.slice(0, 70),
+  );
 
   // --- Bad input is handled, not crashed on -------------------------------
   await bo.page.getByRole('button', { name: 'Share', exact: true }).click();

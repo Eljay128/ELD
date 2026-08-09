@@ -2,6 +2,9 @@ import { useCallback, useSyncExternalStore } from 'react';
 import type { AppState, Circle, Order, Peer, Profile, Round } from './types.ts';
 import { emptyProfile, newId } from './types.ts';
 import { SAMPLE_PEERS, sampleRounds } from './samples.ts';
+import type { Identity, Verification } from './identity.ts';
+import { adoptIdentity, currentIdentity, exportIdentity, loadIdentity, signValue } from './identity.ts';
+import { signedProfilePayload, signedRoundPayload, verifyProfile, verifyRound } from './share.ts';
 import type { Daypart } from '../catalog/types.ts';
 import { groupsForDrink } from '../catalog/index.ts';
 
@@ -179,13 +182,19 @@ export interface ImportResult {
  * Import a decoded profile. Re-importing someone replaces the stored copy when
  * the incoming one is newer, so passing the same link around twice is safe.
  */
-export function importPeer(profile: Profile, source: Peer['source'], circle: Circle = 'friends'): ImportResult {
+export function importPeer(
+  profile: Profile,
+  source: Peer['source'],
+  circle: Circle = 'friends',
+  verification: Verification = 'legacy',
+): ImportResult {
   if (profile.id === state.me.id) {
-    return { peer: { profile, circle, importedAt: Date.now(), source }, status: 'self' };
+    return { peer: { profile, verification, circle, importedAt: Date.now(), source }, status: 'self' };
   }
   const existing = state.peers.find((p) => p.profile.id === profile.id);
   const peer: Peer = {
     profile,
+    verification,
     circle: existing?.circle ?? circle,
     importedAt: Date.now(),
     source,
@@ -203,6 +212,21 @@ export function importPeer(profile: Profile, source: Peer['source'], circle: Cir
 }
 
 /**
+ * Import and check the signature in one step. Verification is asynchronous
+ * (WebCrypto is), so this is the entry point every real import path uses; the
+ * synchronous `importPeer` remains for the sample data, which is unsigned by
+ * design and honestly labelled as such.
+ */
+export async function importPeerVerified(
+  profile: Profile,
+  source: Peer['source'],
+  circle: Circle = 'friends',
+): Promise<ImportResult> {
+  const verification = await verifyProfile(profile);
+  return importPeer(profile, source, circle, verification);
+}
+
+/**
  * Bring in the built-in example people. They arrive through the ordinary import
  * path, so they behave exactly like anyone a real peer has shared.
  */
@@ -213,7 +237,7 @@ export function loadSamplePeers(): number {
     const { status } = importPeer(structuredClone(profile), 'sample', circles[i] ?? 'other');
     if (status === 'added' || status === 'updated') added++;
   }
-  receiveRounds(sampleRounds());
+  receiveRoundsUnchecked(sampleRounds());
   return added;
 }
 
@@ -249,18 +273,94 @@ export function selectAllForRun(ids: string[]): void {
 
 // --- whole-store operations ------------------------------------------------
 
+/**
+ * The backup now carries the private key. Without it a restored profile keeps
+ * its drinks but loses the ability to prove it is itself — so the export is the
+ * only route between devices, and the UI says so.
+ */
 export function exportBackup(): string {
-  return JSON.stringify(state, null, 2);
+  return JSON.stringify({ ...state, identity: identitySnapshot() }, null, 2);
 }
 
-export function importBackup(json: string): void {
-  const parsed = JSON.parse(json) as AppState;
+export async function importBackup(json: string): Promise<void> {
+  const parsed = JSON.parse(json) as AppState & { identity?: Identity };
   if (!parsed?.me) throw new Error('That file does not contain a Pourfolio backup.');
+  if (parsed.identity?.privateJwk) await adoptIdentity(parsed.identity);
   set({ me: parsed.me, peers: parsed.peers ?? [], runSelection: [], rounds: parsed.rounds ?? [] });
+  await ensureSigned();
 }
 
 export function resetAll(): void {
   set({ me: emptyProfile(), peers: [], runSelection: [], rounds: [] });
+}
+
+// --- identity ---------------------------------------------------------------
+
+/**
+ * Boot the identity and make sure the profile carries a current signature.
+ *
+ * A profile is re-signed whenever its `version` moves past `sigVersion`, which
+ * every mutation bumps — so the signature can never quietly describe stale
+ * content. Existing profiles keep their original id and simply gain a key,
+ * which leaves them "unconfirmed" rather than breaking every share link already
+ * in circulation.
+ */
+export async function initIdentity(): Promise<Identity> {
+  const identity = await loadIdentity();
+  adoptFingerprintIfPristine(identity);
+  await ensureSigned();
+  return identity;
+}
+
+/**
+ * A profile that has never been used adopts the key's fingerprint as its id, so
+ * anyone starting today is fully verifiable. An established profile keeps the
+ * id it already has: changing it would break every share link already sent, and
+ * "Unconfirmed ID" is the honest description of that trade rather than a bug.
+ */
+function adoptFingerprintIfPristine(identity: Identity): void {
+  const me = state.me;
+  const pristine = me.version === 1 && !me.name.trim() && me.orders.length === 0 && !me.signature;
+  if (!pristine || me.id === identity.fingerprint) return;
+  state = { ...state, me: { ...me, id: identity.fingerprint } };
+  persist();
+  emit();
+}
+
+/** Re-sign the profile if the stored signature is out of date. Safe to call often. */
+export async function ensureSigned(): Promise<void> {
+  const identity = currentIdentity();
+  if (!identity) return;
+  const me = state.me;
+  const fresh = me.sigVersion === me.version && me.publicKey === identity.publicKey && !!me.signature;
+  if (fresh) return;
+
+  const candidate: Profile = {
+    ...me,
+    publicKey: identity.publicKey,
+    sigAlg: identity.alg,
+    sigVersion: me.version,
+  };
+  const signature = await signValue(signedProfilePayload(candidate), identity);
+
+  // Signing is not an edit, so it must not bump the version — that would
+  // invalidate the signature it just produced and loop forever.
+  state = { ...state, me: { ...candidate, signature } };
+  persist();
+  emit();
+}
+
+/** Sign a round as its buyer before it is stored or sent. */
+export async function signRound(round: Round): Promise<Round> {
+  const identity = currentIdentity();
+  if (!identity || round.buyerId !== state.me.id) return round;
+  const candidate: Round = { ...round, publicKey: identity.publicKey, sigAlg: identity.alg };
+  const signature = await signValue(signedRoundPayload(candidate), identity);
+  return { ...candidate, signature, verification: 'verified' };
+}
+
+export function identitySnapshot(): Identity | null {
+  return exportIdentity();
 }
 
 // --- rounds ----------------------------------------------------------------
@@ -274,12 +374,28 @@ function mergeRounds(existing: Round[], incoming: Round[]): Round[] {
   return [...byId.values()].sort((a, b) => b.at - a.at);
 }
 
-export function addRound(round: Round): void {
-  set({ ...state, rounds: mergeRounds(state.rounds, [round]) });
+export async function addRound(round: Round): Promise<void> {
+  const signed = await signRound(round);
+  set({ ...state, rounds: mergeRounds(state.rounds, [signed]) });
 }
 
-/** Returns how many were genuinely new. */
-export function receiveRounds(rounds: Round[]): number {
+/**
+ * Merge rounds that arrived from elsewhere, checking each signature first.
+ * Returns how many were genuinely new.
+ */
+export async function receiveRounds(rounds: Round[]): Promise<number> {
+  const checked = await Promise.all(
+    rounds.map(async (r) => ({ ...r, verification: r.signature ? await verifyRound(r) : ('legacy' as const) })),
+  );
+  const before = state.rounds.length;
+  const merged = mergeRounds(state.rounds, checked);
+  if (merged.length === before) return 0;
+  set({ ...state, rounds: merged });
+  return merged.length - before;
+}
+
+/** Sample activity is unsigned on purpose and skips the verification round-trip. */
+function receiveRoundsUnchecked(rounds: Round[]): number {
   const before = state.rounds.length;
   const merged = mergeRounds(state.rounds, rounds);
   if (merged.length === before) return 0;
@@ -296,7 +412,7 @@ export function clearRounds(): void {
 }
 
 export function loadSampleRounds(): number {
-  return receiveRounds(sampleRounds());
+  return receiveRoundsUnchecked(sampleRounds());
 }
 
 /** Convenience hook for actions that need the current state at call time. */

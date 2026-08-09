@@ -144,7 +144,7 @@ export function CoffeeRun({
             <button
               className="btn small primary"
               onClick={() => {
-                addRound({
+                void addRound({
                   id: newId(),
                   at: Date.now(),
                   buyerId: me.id,

@@ -1,8 +1,8 @@
 # Always-on rounds feed — scope
 
-**Status:** proposal, nothing built yet
-**Author:** drafted alongside the v0.1 client
-**Decision needed before work starts:** see [Decisions I need from you](#decisions-i-need-from-you)
+**Status:** Phase 0 (identity) **built and shipped**. Phases 1–4 not started.
+**Decisions taken:** relay is **optional per install**; traffic is **encrypted from day one**.
+**Still open:** who operates the relay, prototype-first or not, multi-device.
 
 ---
 
@@ -16,6 +16,23 @@ away.**
 That is a delivery guarantee, and delivery guarantees need something that stays awake. This
 document is about what that something should be, what it costs, and — the part worth most
 of your attention — what it changes about the product.
+
+---
+
+## Where this stands
+
+| Phase | Status |
+| --- | --- |
+| **0. Identity** | **Done.** Keypairs, signing, verification, migration, key in backup — all client-side, no server. |
+| 1. Relay MVP | Not started — blocked on *who operates it* |
+| 2. Encryption + consent | Not started (decision taken: encrypted from day one) |
+| 3. Notifications | Not started |
+| 4. Operations | Not started |
+
+Phase 0 was worth building regardless of whether the relay ever exists, because it makes
+today's peer-to-peer paths spoof-resistant on their own. It is described in
+[Identity](#identity-the-actual-hard-problem) below; what actually shipped matches that
+design, with one addition noted there.
 
 ---
 
@@ -107,9 +124,11 @@ falls apart the moment a server accepts messages: **anything self-asserted can b
 Without fixing this, I can claim to be you and post that you bought everyone a round of
 tequila.
 
-### Proposal
+### What shipped
 
-- On first run, generate an **Ed25519 keypair** with WebCrypto. Never leaves the device.
+- On first run, generate an **Ed25519 keypair** with WebCrypto, falling back to **ECDSA
+  P-256** where Ed25519 is unavailable. The algorithm is recorded with the key so
+  verification always knows which produced a given signature. Never leaves the device.
 - `profileId = base64url(SHA-256(publicKey)).slice(0, 16)` — the ID *is* the key's
   fingerprint, so an ID cannot be claimed by anyone who lacks the key.
 - Share codes carry the public key. Peers verify every signed object against it.
@@ -137,7 +156,12 @@ Profiles created before this change have no key. Plan:
 2. Objects signed by a key whose fingerprint does not match the ID render as
    **"unverified"** — visible, not hidden.
 3. Legacy IDs can never be promoted to verified. A member who wants a verified identity
-   takes a new ID and re-shares. The UI should explain this in one sentence, once.
+   takes a new ID and re-shares. Settings explains this where the mismatch is visible.
+
+**Addition made during implementation:** a profile that has never been used — no name, no
+drinks, still on version 1 — adopts the key's fingerprint as its ID at first boot. So
+anyone starting today is fully **Verified** rather than inheriting the migration state,
+while any established profile keeps the ID its share links already point at.
 
 This is honest and incremental. The alternative — forcing everyone onto new IDs — breaks
 every share link already in the wild.
@@ -276,16 +300,26 @@ round (removal only) · anything discovery-shaped.
 
 ---
 
-## Decisions I need from you
+## Decisions
 
-1. **Optional relay, or always-on for everyone?** I recommend optional — it preserves
-   today's guarantees for people who chose the app because of them.
-2. **Encrypted from day one, or plaintext first?** I recommend encrypted. Retrofitting
-   crypto means a second migration and a window where the relay holds readable data.
-3. **Who runs it?** Someone owns uptime, abuse, and deletion requests. This is the question
-   most likely to decide whether this should exist.
-4. **Three-day managed prototype first,** or straight to the real thing?
-5. **Is one-device-per-identity acceptable for v1?** Multi-device roughly doubles phase 0.
+### Taken
 
-Answer 1–3 and I can start on phase 0 immediately, since identity is worth building either
-way.
+1. **Optional relay.** The relay is off by default and opt-in per install. A member who
+   never enables it has today's app, byte for byte — no network calls, no identity
+   published anywhere.
+2. **Encrypted from day one.** No plaintext-first stage. This rules out ever holding
+   readable rounds on the server, and avoids a second migration.
+
+### Still open — these block phase 1
+
+3. **Who runs it?** Someone owns uptime, abuse reports, and deletion requests. Cost is
+   trivial; responsibility is not. This is the question most likely to decide whether the
+   relay should exist at all.
+4. **Three-day managed prototype first,** or straight to the real thing? Decision 2 makes
+   the prototype less useful than it was — a managed backend's value is mostly the auth and
+   storage you are now not using.
+5. **Is one-device-per-identity acceptable for v1?** Shipped phase 0 assumes yes: the key
+   moves between devices only through the backup file. Multi-device sync is a project of
+   its own.
+
+Phase 1 can start as soon as **3** has an answer.

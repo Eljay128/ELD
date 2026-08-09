@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import qrcode from 'qrcode-generator';
+import type { Verification } from '../model/identity.ts';
+import { VERIFICATION_LABEL } from '../model/identity.ts';
 
 export function Modal({
   title,
@@ -195,6 +197,22 @@ export function Avatar({
   return (
     <span className="avatar-emoji" style={style} role="img" aria-label={name ? `${name}'s icon` : 'Profile icon'}>
       {emoji}
+    </span>
+  );
+}
+
+/**
+ * Signature status. Deliberately visible rather than a silent filter — an
+ * unsigned profile is not an error, and a *bad* signature is something the
+ * member must be able to see rather than something we quietly drop.
+ */
+export function VerificationTag({ verification, compact = false }: { verification: Verification; compact?: boolean }) {
+  const { label, tone, hint } = VERIFICATION_LABEL[verification];
+  if (verification === 'legacy' && compact) return null;
+  const icon = verification === 'verified' ? '✓' : verification === 'invalid' ? '⚠️' : '';
+  return (
+    <span className={`tag ${tone}`} title={hint} style={{ marginLeft: compact ? 6 : 0 }}>
+      {icon} {label}
     </span>
   );
 }

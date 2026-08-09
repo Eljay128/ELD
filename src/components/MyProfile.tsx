@@ -8,7 +8,7 @@ import { dietConflicts, formatOrder, profileToText } from '../model/format.ts';
 import { encodeProfile } from '../model/share.ts';
 import { OrderEditor } from './OrderEditor.tsx';
 import { EditProfile } from './EditProfile.tsx';
-import { Avatar, Empty, copyText } from './ui.tsx';
+import { Avatar, Empty, VerificationTag, copyText } from './ui.tsx';
 
 type Filter = Daypart | 'all';
 
@@ -58,7 +58,10 @@ export function MyProfile({
         <div className="identity-text">
           <h1>{named || 'Your profile'}</h1>
           <div className="identity-sub">
-            {me.handle && <span className="handle">{me.handle}</span>}
+            <span className="row-tight" style={{ gap: 8 }}>
+              {me.handle && <span className="handle">{me.handle}</span>}
+              <VerificationTag verification={me.signature ? (me.publicKey && me.sigVersion === me.version ? 'verified' : 'unverified') : 'legacy'} />
+            </span>
             {me.tagline ? (
               <span className="tagline">{me.tagline}</span>
             ) : (

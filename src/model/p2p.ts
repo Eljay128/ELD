@@ -32,9 +32,9 @@ export type P2PPhase =
 export interface P2PEvents {
   onPhase(phase: P2PPhase, detail?: string): void;
   /** Fired once the other side's profile arrives. */
-  onProfile(profile: Profile): void;
+  onProfile(profile: Profile): void | Promise<void>;
   /** Fired when their recent activity arrives, if they sent any. */
-  onRounds?(rounds: Round[]): void;
+  onRounds?(rounds: Round[]): void | Promise<void>;
 }
 
 export interface P2PSession {
@@ -96,10 +96,10 @@ function wireChannel(channel: RTCDataChannel, me: Profile, rounds: Round[], even
     const payload = String(e.data);
     try {
       if (isRoundsCode(payload)) {
-        events.onRounds?.(decodeRounds(payload));
+        void events.onRounds?.(decodeRounds(payload));
         return;
       }
-      events.onProfile(decodeProfile(payload));
+      void events.onProfile(decodeProfile(payload));
       events.onPhase('exchanged');
     } catch (err) {
       events.onPhase('failed', err instanceof Error ? err.message : 'Could not read what they sent.');

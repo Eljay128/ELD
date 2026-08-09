@@ -4,7 +4,7 @@ import { OCCASIONS, newId } from '../model/types.ts';
 import { addRound, clearRounds, deleteRound, loadSampleRounds, receiveRounds } from '../model/store.ts';
 import { formatOrder } from '../model/format.ts';
 import { ShareCodeError, decodeRounds, encodeRounds } from '../model/share.ts';
-import { Avatar, CopyButton, Empty, Field, Group, Modal } from './ui.tsx';
+import { Avatar, CopyButton, Empty, Field, Group, Modal, VerificationTag } from './ui.tsx';
 
 /**
  * The rounds feed.
@@ -173,6 +173,9 @@ function RoundItem({ round, meId }: { round: Round; meId: string }) {
           {round.recipients.length > 1 ? ' a round' : ' a drink'}
           {occasion && <span className="tag" style={{ marginLeft: 6 }}>{occasion.emoji} {occasion.label}</span>}
           {round.source === 'sample' && <span className="tag" style={{ marginLeft: 6 }}>example</span>}
+          {round.verification && round.verification !== 'legacy' && (
+            <VerificationTag verification={round.verification} compact />
+          )}
         </div>
 
         <ul className="feed-drinks">
@@ -268,7 +271,7 @@ function LogRound({ state, onClose, onToast }: { state: AppState; onClose: () =>
       ];
     });
 
-    addRound({
+    void addRound({
       id: newId(),
       at: Date.now(),
       buyerId: buyer.id,
@@ -423,9 +426,9 @@ function SyncRounds({ state, onClose, onToast }: { state: AppState; onClose: () 
           <button
             className="btn primary"
             disabled={!incoming.trim()}
-            onClick={() => {
+            onClick={async () => {
               try {
-                const added = receiveRounds(decodeRounds(incoming));
+                const added = await receiveRounds(decodeRounds(incoming));
                 setError(null);
                 setIncoming('');
                 onToast(added > 0 ? `Added ${added} round${added === 1 ? '' : 's'}` : 'Already up to date');

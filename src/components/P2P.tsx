@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { Profile, Round } from '../model/types.ts';
 import type { P2PPhase, P2PSession } from '../model/p2p.ts';
 import { answerOffer, p2pSupported, startOffer } from '../model/p2p.ts';
-import { importPeer, receiveRounds } from '../model/store.ts';
+import { importPeerVerified, receiveRounds } from '../model/store.ts';
 import { CopyButton, Field } from './ui.tsx';
 
 /**
@@ -32,12 +32,12 @@ export function P2PPanel({
         setPhase(p);
         setDetail(d ?? null);
       },
-      onRounds: (incoming: Round[]) => {
-        const added = receiveRounds(incoming);
+      onRounds: async (incoming: Round[]) => {
+        const added = await receiveRounds(incoming);
         if (added > 0) onImported(`Received ${added} round${added === 1 ? '' : 's'} of activity`);
       },
-      onProfile: (profile: Profile) => {
-        const { status, peer } = importPeer(profile, 'p2p');
+      onProfile: async (profile: Profile) => {
+        const { status, peer } = await importPeerVerified(profile, 'p2p');
         onImported(
           status === 'self'
             ? 'That was your own profile.'

@@ -151,6 +151,29 @@ round. A public STUN server is used only to discover a route between two NATs; n
 data passes through it, and `iceServers: []` in `src/model/p2p.ts` restricts it to the
 local network.
 
+### Signed identities
+
+Every profile and round is signed with an Ed25519 keypair generated on the device
+(ECDSA P-256 where Ed25519 is unavailable). The key never leaves, and a new profile's ID
+**is** the fingerprint of its own public key — so an ID cannot be claimed by anyone who
+does not hold the matching key, and nobody can publish a drink order in your name.
+
+Peers see one of four states, always visible rather than filtered away:
+
+| Badge | Meaning |
+| --- | --- |
+| **Verified** | Signature valid and the ID is this key's fingerprint |
+| **Unsigned** | Made before signing existed — not suspicious, just uncheckable |
+| **Unconfirmed ID** | Signature valid, but the ID predates the key so the two cannot be tied |
+| **Bad signature** | Signed, and the signature fails. Do not trust it. |
+
+Existing profiles keep their original ID and simply gain a key, so every share link already
+in circulation still resolves. A profile that has never been used adopts its fingerprint as
+its ID at first boot, so anyone starting today is fully verified.
+
+The signing key is included in the backup export — that file is the only way to keep the
+same identity on another device, and there is no reset link.
+
 ### Privacy, stated plainly
 
 - No account, no sign-in, no server storing your profile.
@@ -178,6 +201,7 @@ src/
   model/
     types.ts          Profile, Order, Peer, Round, occasions, dietary flags
     avatar.ts         Crop, downscale and re-encode a photo to share-code size
+    identity.ts       Keypairs, signing, verification, canonical bytes
     store.ts          localStorage-backed state; no network anywhere in it
     share.ts          Encode/decode, link building, inbound-link parsing
     p2p.ts            WebRTC exchange with manual signalling
@@ -233,10 +257,11 @@ across reload, share-link import, allergy propagation, the run sheet, idempotent
 re-imports, and damaged-code handling, plus the profile metrics, segmented filter and
 overflow menu, the photo pipeline, the feed, and cross-window live sync (a second page
 sharing one localStorage — exactly what a second tab is). 45 checks, no console errors
-tolerated.
+tolerated. Identity coverage includes tampering with a real share code
+and confirming the app never silently trusts it.
 
 ```bash
-npm test        # 45 browser checks
+npm test        # 50 browser checks
 npm run check   # catalog consistency
 ```
 

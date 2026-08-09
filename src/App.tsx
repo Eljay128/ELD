@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { catalogStats } from './catalog/index.ts';
 import { useStore } from './model/store.ts';
-import { importPeer } from './model/store.ts';
+import { ensureSigned, importPeerVerified, initIdentity } from './model/store.ts';
 import { ShareCodeError, clearInbound, decodeProfile, readInboundCode } from './model/share.ts';
 import { MyProfile } from './components/MyProfile.tsx';
 import { Peers } from './components/Peers.tsx';
@@ -27,6 +27,16 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('me');
   const [toast, showToast] = useToast();
 
+  // Create or load the signing key once, then keep the profile's signature
+  // current. `ensureSigned` is a no-op unless the profile has changed since it
+  // was last signed, so running it on every version bump is cheap.
+  useEffect(() => {
+    void initIdentity();
+  }, []);
+  useEffect(() => {
+    void ensureSigned();
+  }, [state.me.version]);
+
   // A share link handed to the app: import it, then clean the URL so a refresh
   // does not re-import and the code does not linger in browser history.
   //
@@ -35,12 +45,12 @@ export default function App() {
   // navigation — React never remounts, and without this the link would silently
   // do nothing.
   useEffect(() => {
-    const consume = () => {
+    const consume = async () => {
       const inbound = readInboundCode();
       if (!inbound) return;
       try {
         const profile = decodeProfile(inbound);
-        const { status, peer } = importPeer(profile, 'link');
+        const { status, peer } = await importPeerVerified(profile, 'link');
         showToast(
           status === 'self'
             ? 'That link was your own profile.'
@@ -58,9 +68,10 @@ export default function App() {
       }
     };
 
-    consume();
-    window.addEventListener('hashchange', consume);
-    return () => window.removeEventListener('hashchange', consume);
+    void consume();
+    const handler = () => void consume();
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
   }, [showToast]);
 
   const stats = catalogStats();

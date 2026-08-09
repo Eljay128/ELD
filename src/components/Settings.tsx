@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { BRANDS } from '../catalog/index.ts';
 import type { AppState } from '../model/types.ts';
-import { exportBackup, importBackup, resetAll } from '../model/store.ts';
-import { CopyButton, Group } from './ui.tsx';
+import { exportBackup, identitySnapshot, importBackup, resetAll } from '../model/store.ts';
+import { CopyButton, Group, VerificationTag } from './ui.tsx';
 
 export function Settings({
   state,
@@ -24,12 +24,21 @@ export function Settings({
 
       <div className="card">
         <div className="card-head">
+          <h2>Your identity</h2>
+          <VerificationTag verification={state.me.signature ? 'verified' : 'legacy'} />
+        </div>
+        <IdentityPanel state={state} />
+      </div>
+
+      <div className="card">
+        <div className="card-head">
           <h2>Where your data lives</h2>
         </div>
         <p className="muted">
           Your profile and every peer you have imported are stored in this browser's local storage. Clearing site data,
           using a different browser, or switching devices means starting fresh — so keep a backup if the profile matters
-          to you.
+          to you. <strong>The backup now contains your signing key</strong>, which is the only way to keep the same
+          identity on another device.
         </p>
         <div className="row">
           <button
@@ -60,7 +69,7 @@ export function Settings({
               const file = e.target.files?.[0];
               if (!file) return;
               try {
-                importBackup(await file.text());
+                await importBackup(await file.text());
                 onToast('Backup restored');
               } catch (err) {
                 onToast(err instanceof Error ? err.message : 'That backup could not be read.');
@@ -144,6 +153,10 @@ export function Settings({
             phone number.
           </li>
           <li>Direct device-to-device swaps use a public STUN server only to find a route; your profile never touches it.</li>
+          <li>
+            Your signing key is generated on this device and never leaves it, except inside a backup file you download
+            yourself.
+          </li>
         </ul>
       </div>
 
@@ -164,6 +177,81 @@ export function Settings({
             Erase everything
           </button>
         </Group>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The identity panel exists mostly to make the key *visible*. A key nobody
+ * knows about is a key nobody backs up, and losing it means losing the ability
+ * to prove a profile is yours.
+ */
+function IdentityPanel({ state }: { state: AppState }) {
+  const identity = identitySnapshot();
+
+  if (!identity) {
+    return <p className="muted">Setting up your signing key…</p>;
+  }
+
+  const idMatchesKey = state.me.id === identity.fingerprint;
+
+  return (
+    <>
+      <p className="muted">
+        Every profile and round you send is signed with a key held only on this device. Peers check the signature, so
+        nobody can publish a drink order in your name — and that holds even if a future relay is compromised.
+      </p>
+
+      <table className="stats">
+        <tbody>
+          <tr>
+            <td>Key fingerprint</td>
+            <td className="mono">{identity.fingerprint}</td>
+          </tr>
+          <tr>
+            <td>Your profile ID</td>
+            <td className="mono">{state.me.id}</td>
+          </tr>
+          <tr>
+            <td>Algorithm</td>
+            <td>{identity.alg}</td>
+          </tr>
+          <tr>
+            <td>Created</td>
+            <td>{new Date(identity.createdAt).toLocaleDateString()}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {!idMatchesKey && (
+        <div className="banner warn" style={{ marginTop: 12 }}>
+          <span>ℹ️</span>
+          <div>
+            <strong>Your profile ID predates your key.</strong>
+            <div>
+              Your profile was created before Pourfolio had signing, so its ID is not derived from this key and the two
+              cannot be tied together. Everything still works and everything is still signed — peers just see
+              “Unconfirmed ID” rather than “Verified”. Keeping the old ID means every share link you have already sent
+              still resolves to you; the alternative would break all of them.
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="banner" style={{ marginTop: 12 }}>
+        <span>🔑</span>
+        <div>
+          <strong>Back this up.</strong>
+          <div>
+            There is no account and no reset link. If you lose this device without a backup, you lose the key — your
+            drinks can be re-entered, but the identity cannot be recovered.
+          </div>
+        </div>
+      </div>
+
+      <div className="row" style={{ marginTop: 12 }}>
+        <CopyButton text={identity.publicKey} label="Copy public key" />
       </div>
     </>
   );
