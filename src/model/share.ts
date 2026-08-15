@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
 import type { Order, Profile, Round } from './types.ts';
 import type { DietTag } from '../catalog/types.ts';
-import type { SigAlg, Verification } from './identity.ts';
+import type { KexAlg, SigAlg, Verification } from './identity.ts';
 import { verifyOwnership } from './identity.ts';
 
 /**
@@ -40,6 +40,8 @@ interface WireProfile {
   sa?: SigAlg;
   sg?: string;
   sv?: number;
+  ek?: string;
+  ka?: KexAlg;
 }
 
 interface WireOrder {
@@ -84,6 +86,8 @@ function toWire(p: Profile): WireProfile {
     ...(p.sigAlg ? { sa: p.sigAlg } : {}),
     ...(p.signature ? { sg: p.signature } : {}),
     ...(p.sigVersion !== undefined ? { sv: p.sigVersion } : {}),
+    ...(p.encPublicKey ? { ek: p.encPublicKey } : {}),
+    ...(p.kexAlg ? { ka: p.kexAlg } : {}),
   };
 }
 
@@ -94,6 +98,8 @@ function toWire(p: Profile): WireProfile {
  */
 export function signedProfilePayload(p: Profile): object {
   const { pk: _pk, sa: _sa, sg: _sg, sv: _sv, ...rest } = toWire(p);
+  // `ek`/`ka` stay in the signed payload on purpose: a peer's encryption key
+  // must be as tamper-evident as the rest of their profile.
   return rest;
 }
 
@@ -142,6 +148,8 @@ function fromWire(w: WireProfile): Profile {
     sigAlg: w.sa,
     signature: w.sg,
     sigVersion: w.sv,
+    encPublicKey: w.ek,
+    kexAlg: w.ka,
   };
 }
 

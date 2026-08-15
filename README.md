@@ -90,27 +90,66 @@ The link, the file, and the direct swap all include it.
 
 ---
 
-## The rounds feed, and what "live" honestly means
+## The rounds feed
 
-The feed shows peers and friends buying each other drinks. Three things are genuinely
-real-time:
+The feed shows peers and friends buying each other drinks.
 
 | Where | How live | Mechanism |
 | --- | --- | --- |
 | This window | Instant | Local state |
 | Your other tabs and windows | Instant, no polling | The `storage` event |
 | A connected peer | Instant while the connection is open | The WebRTC data channel |
+| **A peer whose app is closed** | **On their next launch** | **The optional relay, below** |
 
-Timestamps re-render on a timer, so "just now" becomes "4 min ago" while you watch.
-
-**What it is not** is an always-on global timeline. Delivering activity to someone who is
-not currently connected requires a server to hold it until they come back, and Pourfolio
-deliberately has none. The feed states this in the app rather than implying a connection
-that is not there. Rounds otherwise move the same way profiles do — as a code you hand
-over (`PFR1.…`), merged by id so exchanging twice never duplicates.
+Timestamps re-render on a timer, so "just now" becomes "4 min ago" while you watch. Rounds
+also move as a code you hand over (`PFR1.…`), merged by id so exchanging twice never
+duplicates.
 
 Rounds are stored as written rather than recomputed: if a peer later edits their profile,
 the round still records what was actually in the cup that day.
+
+---
+
+## The relay — optional, encrypted, off by default
+
+Reaching someone whose app is **closed** needs something that stays awake. That is the
+relay: a small server that holds sealed envelopes addressed to a profile ID and hands them
+over on next launch.
+
+It ships **off, with no address**. Nothing reaches any server until someone deliberately
+enters a relay URL and switches it on — with it off the built app makes no network calls at
+all, exactly as before. There is no default relay and none is operated by anyone but you.
+
+```bash
+npm run relay                                    # port 8787, memory only
+PORT=9000 DATA=./relay-data.json npm run relay   # persist across restarts
+```
+
+Then paste the address into **Settings → Always-on feed** and switch it on.
+
+### What the relay can and cannot see
+
+**Cannot read** any drink, name, note, allergy or photo. A round is sealed per recipient
+before it leaves the device: ECDH → HKDF-SHA256 → AES-256-GCM, one envelope each, so the
+relay cannot even tell that two envelopes carry the same round.
+
+**Can see** that one profile ID sent something to another, and when. Over months that is a
+social graph. This is stated in the app before you switch anything on, because "encrypted"
+is often heard as "invisible".
+
+**No forward secrecy.** Both sides use long-lived key-agreement keys, so anyone who later
+obtains a private key can decrypt everything ever sent to it. Real forward secrecy needs a
+ratchet, which is a substantially larger project — documented rather than glossed.
+
+### Consent
+
+A round is a claim about *other people* — where they were, what they drink. So delivery is
+gated three ways: the envelope must decrypt, the round inside must carry a valid signature
+from the claimed buyer, and that buyer must be someone you have imported and not muted.
+Each peer card has a **Can add rounds / Rounds muted** toggle, revocable at any time.
+
+Settings also has **Forget me and switch off**, which erases your keys and any undelivered
+rounds from the relay.
 
 ---
 
@@ -200,6 +239,8 @@ src/
     home.ts           Hosting: what to pour when someone visits
   model/
     types.ts          Profile, Order, Peer, Round, occasions, dietary flags
+    relay.ts          Optional relay client — off unless switched on
+    sealed.ts         Per-recipient envelope encryption
     avatar.ts         Crop, downscale and re-encode a photo to share-code size
     identity.ts       Keypairs, signing, verification, canonical bytes
     store.ts          localStorage-backed state; no network anywhere in it
@@ -215,9 +256,13 @@ src/
     Share.tsx         Codes, links, QR, file import, camera scanning
     P2P.tsx           The direct browser-to-browser swap
     Feed.tsx          The rounds feed, logging, and peer activity sync
+    RelayPanel.tsx    Switching the relay on, and what it can see
     Settings.tsx      Data, catalog provenance, privacy, reset
+relay/
+  server.mjs          The relay: a mailbox for sealed envelopes, nothing more
 scripts/
   smoke.mjs           End-to-end test driving two independent browsers
+  relay-test.mjs      Proves delivery to a peer whose app was closed
   check-catalog.ts    Catches option ids that reference nothing
   build-single-file.mjs  Inlines the build into one portable HTML file
 ```
@@ -261,9 +306,16 @@ tolerated. Identity coverage includes tampering with a real share code
 and confirming the app never silently trusts it.
 
 ```bash
-npm test        # 50 browser checks
-npm run check   # catalog consistency
+npm test          # 50 offline checks + 14 relay checks
+npm run test:relay  # just the always-on delivery proof
+npm run check     # catalog consistency
 ```
+
+`relay-test.mjs` is the one that matters for the always-on claim: it starts a real relay,
+has Ada buy Bo a round while **Bo's browser page is closed**, then reopens Bo and asserts
+the round is there, signature-verified. It also checks the relay refuses an ID that is not
+its key's fingerprint, refuses an unauthenticated mailbox read, and forgets a round once
+acknowledged.
 
 `check-catalog.ts` exists because a mistyped option id does not throw — it silently
 vanishes from the rendered order, so the profile looks fine and quietly means something

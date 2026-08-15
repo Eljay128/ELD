@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { DAYPARTS } from '../catalog/index.ts';
 import type { Circle, Peer } from '../model/types.ts';
 import { CIRCLES, DIET_FLAGS } from '../model/types.ts';
-import { loadSamplePeers, removePeer, setPeerCircle, toggleRunSelection } from '../model/store.ts';
+import { loadSamplePeers, removePeer, setPeerAllowRounds, setPeerCircle, toggleRunSelection } from '../model/store.ts';
 import { formatOrder, profileToText } from '../model/format.ts';
 import { Avatar, CopyButton, Empty, Modal, VerificationTag } from './ui.tsx';
 
@@ -137,6 +137,17 @@ function PeerCard({ peer, selected, onOpen }: { peer: Peer; selected: boolean; o
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="row-tight" style={{ marginTop: 8 }}>
+        <button
+          className="chip"
+          aria-pressed={peer.allowRounds !== false}
+          onClick={() => setPeerAllowRounds(profile.id, peer.allowRounds === false)}
+          title="A round names you and what you drink. This controls whether they can put one on your feed."
+        >
+          {peer.allowRounds === false ? '🔕 Rounds muted' : '🔔 Can add rounds'}
+        </button>
       </div>
 
       <div className="row" style={{ marginTop: 12 }}>

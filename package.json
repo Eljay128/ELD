@@ -9,16 +9,19 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "test": "npm run build && node scripts/smoke.mjs",
+    "test": "npm run build && node scripts/smoke.mjs && node scripts/relay-test.mjs",
     "check": "node --experimental-strip-types scripts/check-catalog.ts",
-    "single": "npm run build && node scripts/build-single-file.mjs"
+    "single": "npm run build && node scripts/build-single-file.mjs",
+    "relay": "node relay/server.mjs",
+    "test:relay": "npm run build && node scripts/relay-test.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",
     "jsqr": "^1.4.0",
     "qrcode-generator": "^2.0.4",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

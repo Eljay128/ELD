@@ -31,7 +31,7 @@ export default function App() {
   // current. `ensureSigned` is a no-op unless the profile has changed since it
   // was last signed, so running it on every version bump is cheap.
   useEffect(() => {
-    void initIdentity();
+    void initIdentity().then(() => import('./model/relay.ts')).then((m) => m.resumeRelay());
   }, []);
   useEffect(() => {
     void ensureSigned();

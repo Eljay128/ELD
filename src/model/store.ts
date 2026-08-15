@@ -3,7 +3,7 @@ import type { AppState, Circle, Order, Peer, Profile, Round } from './types.ts';
 import { emptyProfile, newId } from './types.ts';
 import { SAMPLE_PEERS, sampleRounds } from './samples.ts';
 import type { Identity, Verification } from './identity.ts';
-import { adoptIdentity, currentIdentity, exportIdentity, loadIdentity, signValue } from './identity.ts';
+import { adoptIdentity, currentIdentity, ensureKexKey, exportIdentity, loadIdentity, signValue } from './identity.ts';
 import { signedProfilePayload, signedRoundPayload, verifyProfile, verifyRound } from './share.ts';
 import type { Daypart } from '../catalog/types.ts';
 import { groupsForDrink } from '../catalog/index.ts';
@@ -253,6 +253,24 @@ export function setPeerCircle(id: string, circle: Circle): void {
   set({ ...state, peers: state.peers.map((p) => (p.profile.id === id ? { ...p, circle } : p)) });
 }
 
+/** Revoke or restore a peer's ability to put rounds on your feed. */
+export function setPeerAllowRounds(id: string, allow: boolean): void {
+  set({ ...state, peers: state.peers.map((p) => (p.profile.id === id ? { ...p, allowRounds: allow } : p)) });
+}
+
+/** Consent check used before any inbound round is accepted. */
+export function mayPostRounds(profileId: string): boolean {
+  if (profileId === state.me.id) return true;
+  const peer = state.peers.find((p) => p.profile.id === profileId);
+  // Mutual import is the consent signal: someone you have never imported
+  // cannot put a claim about you on your own feed.
+  return !!peer && peer.allowRounds !== false;
+}
+
+export function currentState(): AppState {
+  return state;
+}
+
 // --- coffee run ------------------------------------------------------------
 
 export function toggleRunSelection(id: string): void {
@@ -306,7 +324,10 @@ export function resetAll(): void {
  * in circulation.
  */
 export async function initIdentity(): Promise<Identity> {
-  const identity = await loadIdentity();
+  await loadIdentity();
+  // Identities predating encryption gain a key-agreement pair in place, so the
+  // fingerprint — and therefore the profile ID — never changes.
+  const identity = (await ensureKexKey()) ?? currentIdentity()!;
   adoptFingerprintIfPristine(identity);
   await ensureSigned();
   return identity;
@@ -332,13 +353,19 @@ export async function ensureSigned(): Promise<void> {
   const identity = currentIdentity();
   if (!identity) return;
   const me = state.me;
-  const fresh = me.sigVersion === me.version && me.publicKey === identity.publicKey && !!me.signature;
+  const fresh =
+    me.sigVersion === me.version &&
+    me.publicKey === identity.publicKey &&
+    me.encPublicKey === identity.encPublicKey &&
+    !!me.signature;
   if (fresh) return;
 
   const candidate: Profile = {
     ...me,
     publicKey: identity.publicKey,
     sigAlg: identity.alg,
+    encPublicKey: identity.encPublicKey,
+    kexAlg: identity.kexAlg,
     sigVersion: me.version,
   };
   const signature = await signValue(signedProfilePayload(candidate), identity);
@@ -377,6 +404,12 @@ function mergeRounds(existing: Round[], incoming: Round[]): Round[] {
 export async function addRound(round: Round): Promise<void> {
   const signed = await signRound(round);
   set({ ...state, rounds: mergeRounds(state.rounds, [signed]) });
+  // Local state is authoritative and already updated; the relay is a
+  // best-effort delivery attempt on top, imported lazily so the module never
+  // loads for members who leave the relay switched off.
+  if (signed.buyerId === state.me.id) {
+    void import('./relay.ts').then((m) => m.publishRound(signed)).catch(() => {});
+  }
 }
 
 /**

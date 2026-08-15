@@ -1,8 +1,8 @@
 # Always-on rounds feed — scope
 
-**Status:** Phase 0 (identity) **built and shipped**. Phases 1–4 not started.
+**Status:** Phases 0–2 **built**. The relay runs, is encrypted, and is off by default.
 **Decisions taken:** relay is **optional per install**; traffic is **encrypted from day one**.
-**Still open:** who operates the relay, prototype-first or not, multi-device.
+**Still open:** who operates a public relay (deployment only — the code is done).
 
 ---
 
@@ -23,11 +23,15 @@ of your attention — what it changes about the product.
 
 | Phase | Status |
 | --- | --- |
-| **0. Identity** | **Done.** Keypairs, signing, verification, migration, key in backup — all client-side, no server. |
-| 1. Relay MVP | Not started — blocked on *who operates it* |
-| 2. Encryption + consent | Not started (decision taken: encrypted from day one) |
-| 3. Notifications | Not started |
-| 4. Operations | Not started |
+| **0. Identity** | **Done.** Keypairs, signing, verification, migration, key in backup. |
+| **1. Relay MVP** | **Done.** `relay/server.mjs` — mailbox, WebSocket push, challenge-response auth, TTL. Client in `src/model/relay.ts`. |
+| **2. Encryption + consent** | **Done.** ECDH → HKDF → AES-GCM per recipient; mutual-import gating; per-peer mute; forget-me. |
+| 3. Notifications | Not started — Web Push, service worker, badges. |
+| 4. Operations | Partly. Rate limits, retention and deletion exist; monitoring, abuse handling and a privacy policy do not. |
+
+**Nothing is deployed.** The relay ships off with no address, so this commits nobody to
+operating anything. Running `npm run relay` locally and pointing two browsers at it
+demonstrates the whole feature; `npm run test:relay` proves it automatically.
 
 Phase 0 was worth building regardless of whether the relay ever exists, because it makes
 today's peer-to-peer paths spoof-resistant on their own. It is described in

@@ -1,5 +1,5 @@
 import type { Daypart, DietTag } from '../catalog/types.ts';
-import type { SigAlg, Verification } from './identity.ts';
+import type { KexAlg, SigAlg, Verification } from './identity.ts';
 
 /** A single saved drink order inside a profile. */
 export interface Order {
@@ -86,6 +86,10 @@ export interface Profile {
   signature?: string;
   /** The `version` the signature was made over — a dirty flag for re-signing. */
   sigVersion?: number;
+  /** Key-agreement public key, so a peer can seal an envelope for this profile
+   *  without going through the relay's directory. */
+  encPublicKey?: string;
+  kexAlg?: KexAlg;
 }
 
 /** A peer's profile as stored locally, plus how it got here. */
@@ -95,6 +99,12 @@ export interface Peer {
   verification: Verification;
   /** How the member labels this person: friend, family, coworker… */
   circle: Circle;
+  /**
+   * Whether this person may put rounds on your feed. A round is a claim about
+   * *you* — where you were, what you drink — so delivery is consent-gated, and
+   * importing someone is the consent signal. Revocable at any time.
+   */
+  allowRounds?: boolean;
   importedAt: number;
   source: 'link' | 'code' | 'qr' | 'file' | 'p2p' | 'sample';
 }

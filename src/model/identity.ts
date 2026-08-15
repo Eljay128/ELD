@@ -28,6 +28,13 @@ const STORAGE_KEY = 'pourfolio.identity.v1';
  */
 export type SigAlg = 'Ed25519' | 'ECDSA-P256';
 
+/**
+ * Signing keys cannot do key agreement, so an identity carries a second pair
+ * purely for encryption. Same story on support: X25519 where available, ECDH
+ * P-256 everywhere else.
+ */
+export type KexAlg = 'X25519' | 'ECDH-P256';
+
 export interface Identity {
   alg: SigAlg;
   /** base64url of the raw public key. Travels inside share codes. */
@@ -36,6 +43,13 @@ export interface Identity {
   fingerprint: string;
   privateJwk: JsonWebKey;
   publicJwk: JsonWebKey;
+
+  /** Key-agreement pair, used to seal envelopes for a specific recipient. */
+  kexAlg: KexAlg;
+  /** base64url raw public key. Published alongside the signing key. */
+  encPublicKey: string;
+  encPrivateJwk: JsonWebKey;
+
   createdAt: number;
 }
 
@@ -64,6 +78,19 @@ function keyParams(alg: SigAlg): AlgorithmIdentifier | EcKeyImportParams {
 async function supportsEd25519(): Promise<boolean> {
   try {
     const pair = (await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify'])) as CryptoKeyPair;
+    return !!pair.privateKey;
+  } catch {
+    return false;
+  }
+}
+
+export function kexParams(alg: KexAlg): AlgorithmIdentifier | EcKeyImportParams {
+  return alg === 'X25519' ? { name: 'X25519' } : { name: 'ECDH', namedCurve: 'P-256' };
+}
+
+async function supportsX25519(): Promise<boolean> {
+  try {
+    const pair = (await crypto.subtle.generateKey({ name: 'X25519' }, true, ['deriveBits'])) as CryptoKeyPair;
     return !!pair.privateKey;
   } catch {
     return false;
@@ -149,14 +176,44 @@ export async function createIdentity(): Promise<Identity> {
   const rawPublic = await crypto.subtle.exportKey('raw', pair.publicKey);
   const publicKey = toB64url(rawPublic);
 
+  const kexAlg: KexAlg = (await supportsX25519()) ? 'X25519' : 'ECDH-P256';
+  const kexPair = (await crypto.subtle.generateKey(kexParams(kexAlg) as AlgorithmIdentifier, true, [
+    'deriveBits',
+  ])) as CryptoKeyPair;
+
   return {
     alg,
     publicKey,
     fingerprint: await fingerprintOf(publicKey),
     privateJwk: await crypto.subtle.exportKey('jwk', pair.privateKey),
     publicJwk: await crypto.subtle.exportKey('jwk', pair.publicKey),
+    kexAlg,
+    encPublicKey: toB64url(await crypto.subtle.exportKey('raw', kexPair.publicKey)),
+    encPrivateJwk: await crypto.subtle.exportKey('jwk', kexPair.privateKey),
     createdAt: Date.now(),
   };
+}
+
+/**
+ * Identities created before encryption existed have no key-agreement pair.
+ * Rather than force a new identity — which would change the fingerprint and
+ * therefore the profile ID — the missing pair is generated in place.
+ */
+export async function ensureKexKey(): Promise<Identity | null> {
+  if (!cached) return null;
+  if (cached.encPublicKey && cached.encPrivateJwk) return cached;
+  const kexAlg: KexAlg = (await supportsX25519()) ? 'X25519' : 'ECDH-P256';
+  const kexPair = (await crypto.subtle.generateKey(kexParams(kexAlg) as AlgorithmIdentifier, true, [
+    'deriveBits',
+  ])) as CryptoKeyPair;
+  cached = {
+    ...cached,
+    kexAlg,
+    encPublicKey: toB64url(await crypto.subtle.exportKey('raw', kexPair.publicKey)),
+    encPrivateJwk: await crypto.subtle.exportKey('jwk', kexPair.privateKey),
+  };
+  persist(cached);
+  return cached;
 }
 
 function persist(identity: Identity): void {

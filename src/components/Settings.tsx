@@ -3,6 +3,7 @@ import { BRANDS } from '../catalog/index.ts';
 import type { AppState } from '../model/types.ts';
 import { exportBackup, identitySnapshot, importBackup, resetAll } from '../model/store.ts';
 import { CopyButton, Group, VerificationTag } from './ui.tsx';
+import { RelayPanel } from './RelayPanel.tsx';
 
 export function Settings({
   state,
@@ -28,6 +29,14 @@ export function Settings({
           <VerificationTag verification={state.me.signature ? 'verified' : 'legacy'} />
         </div>
         <IdentityPanel state={state} />
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h2>Always-on feed (relay)</h2>
+          <span className="tag">optional</span>
+        </div>
+        <RelayPanel onToast={onToast} />
       </div>
 
       <div className="card">
@@ -146,7 +155,10 @@ export function Settings({
         </div>
         <ul className="muted" style={{ paddingLeft: 20, margin: 0 }}>
           <li>No account, no sign-in, no server storing your profile.</li>
-          <li>No analytics and no third-party requests — the built app makes no network calls at all.</li>
+          <li>
+            No analytics and no third-party requests. With the relay off — the default — the app makes no network calls
+            at all.
+          </li>
           <li>
             A share code contains your whole profile in plain compressed form. It is <strong>not encrypted</strong> —
             anyone you send it to, or who sees it over your shoulder, can read it. Share it the way you would share a
