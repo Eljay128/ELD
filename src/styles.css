@@ -1,19 +1,145 @@
 /* ---------------------------------------------------------------------------
-   Palette — one committed look, not a light/dark pair.
+   Palette.
 
-   The page is a dark canvas with a warm amber wash bleeding down from the top,
-   the way a music app tints its header from the artwork below it. A light
-   variant of that idea does not exist, so this design deliberately ships a
-   single theme: every colour is stated outright and nothing hides behind a
-   `prefers-color-scheme` query. `body` paints its own ground, so the page holds
-   whatever the host is doing around it.
+   One identity in two lights. Both themes are a warm ground with an amber wash
+   falling from the top and a single green carrying every action — what changes
+   is whether that wash is light emitted in a dark room or sunlight landing on
+   paper. The light theme is designed rather than inverted: its wash is shorter
+   and softer, and its green steps down to a deep forest tone wherever green
+   becomes *ink*, because the bright green is illegible on parchment.
+
+   Three states, because the viewer has three: an explicit choice stamps
+   `data-theme`, and the default "system" setting stamps nothing. Bare `:root`
+   is the complete light palette; the dark palette is redefined for both the
+   system-dark case and the explicit toggle, so neither can lose to the other.
+   Components only ever read tokens, never a literal.
    --------------------------------------------------------------------------- */
 
 :root {
+  color-scheme: light;
+
+  /* Warm parchment rather than white — the same warmth the dark theme gets from
+     its ground, so the two read as one identity rather than two products. */
+  --bg: #fdf7ee;
+  --bg-sunk: #f4ebdd;
+  --surface: #ffffff;
+  --surface-2: #fbf4e9;
+  --border: #e8dcc8;
+  --border-strong: #d3c2a6;
+
+  /* Daylight, not a stain: apricot at the crown, thinning quickly. The dark
+     theme's wash is light emitted in a dark room; this one is sunlight falling
+     on paper, so it is softer and shorter. */
+  --wash-top: #f0b860;
+  --wash-mid: #f6d7a6;
+  --wash-tail: #fbeacf;
+  --wash-opacity: 0.85;
+
+  --text: #241a10;
+  --text-dim: #6b5c4a;
+  --text-faint: #93826c;
+
+  /* The bright green survives as a *fill* with dark text on it, exactly as it
+     does on dark. As ink on parchment it fails contrast outright, so green text
+     and borders step down to a deep forest tone. */
+  --accent: #16c35a;
+  --accent-hover: #12ae4f;
+  --accent-text: #04160b;
+  --accent-ink: #0b6d33;
+  --accent-soft: #dff5e6;
+  --accent-border: #8fd6a9;
+
+  --danger: #c0322f;
+  --danger-soft: #fbe4e2;
+  --warn: #8a6206;
+  --warn-soft: #fbeecd;
+  --ok: #0b6d33;
+  --ok-soft: #dff5e6;
+
+  /* Translucent layers. On light these tint with warm white rather than raw
+     white, so cards over the wash stay warm instead of turning grey. */
+  --topbar-bg: rgb(253 247 238 / 0.72);
+  --hairline: rgb(60 40 15 / 0.1);
+  --glass: rgb(255 252 246 / 0.72);
+  --glass-border: rgb(120 85 35 / 0.16);
+  --glass-sunk: rgb(238 226 208 / 0.8);
+  --field-bg: rgb(255 255 255 / 0.75);
+  --field-border: rgb(120 85 35 / 0.2);
+  --chip-bg: rgb(255 255 255 / 0.7);
+  --chip-bg-hover: rgb(255 255 255 / 0.95);
+  --chip-border: rgb(120 85 35 / 0.18);
+  --card-bg: #ffffff;
+  --overlay: rgb(60 40 20 / 0.34);
+  --toast-bg: #241a10;
+  --toast-text: #fdf7ee;
+
+  --shadow: 0 1px 2px rgb(90 65 25 / 0.07), 0 4px 16px rgb(90 65 25 / 0.08);
+  --shadow-lg: 0 2px 6px rgb(90 65 25 / 0.12), 0 18px 48px rgb(90 65 25 / 0.18);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 18px;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #100d0a;
+    --bg-sunk: #0a0807;
+    --surface: #1a1614;
+    --surface-2: #241f1b;
+    --border: #2e2823;
+    --border-strong: #43392f;
+
+    --wash-top: #9a6017;
+    --wash-mid: #6b4113;
+    --wash-tail: #2b1b0c;
+    --wash-opacity: 1;
+
+    --text: #ffffff;
+    --text-dim: #b7ada2;
+    --text-faint: #8b8177;
+
+    --accent: #1ed760;
+    --accent-hover: #34e174;
+    --accent-text: #06170d;
+    --accent-ink: #35e074;
+    --accent-soft: #123722;
+    --accent-border: #1f6b3f;
+
+    --danger: #ff6b6b;
+    --danger-soft: #3a1a1c;
+    --warn: #f5c518;
+    --warn-soft: #3a2f10;
+    --ok: #1ed760;
+    --ok-soft: #123722;
+
+    /* Translucent layers that let the wash read through them. */
+    --topbar-bg: rgb(24 15 5 / 0.28);
+    --hairline: rgb(255 255 255 / 0.07);
+    --glass: rgb(20 14 8 / 0.42);
+    --glass-border: rgb(255 255 255 / 0.1);
+    --glass-sunk: rgb(10 7 4 / 0.5);
+    --field-bg: rgb(255 255 255 / 0.07);
+    --field-border: rgb(255 255 255 / 0.09);
+    --chip-bg: rgb(255 255 255 / 0.05);
+    --chip-bg-hover: rgb(255 255 255 / 0.1);
+    --chip-border: rgb(255 255 255 / 0.1);
+    --card-bg: color-mix(in srgb, #1a1614 88%, transparent);
+    --overlay: rgb(6 4 2 / 0.66);
+    --toast-bg: #22303c;
+    --toast-text: #ffffff;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.36);
+    --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.5), 0 18px 48px rgb(0 0 0 / 0.6);
+  }
+}
+
+:root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Ground: warm-biased near-black, so the amber above never reads as a stain
-     sitting on neutral grey. */
   --bg: #100d0a;
   --bg-sunk: #0a0807;
   --surface: #1a1614;
@@ -21,26 +147,22 @@
   --border: #2e2823;
   --border-strong: #43392f;
 
-  /* The wash. Sampled warm ochre through to nothing, the way artwork colour
-     fades out down a page. */
-  --wash-top: #b3701b;
-  --wash-mid: #7a4a15;
+  --wash-top: #9a6017;
+  --wash-mid: #6b4113;
   --wash-tail: #2b1b0c;
+  --wash-opacity: 1;
 
   --text: #ffffff;
   --text-dim: #b7ada2;
   --text-faint: #8b8177;
 
-  /* Accent: the vivid green that carries every primary action. Text on it is
-     near-black, which is the only way that green stays legible. */
   --accent: #1ed760;
   --accent-hover: #34e174;
   --accent-text: #06170d;
+  --accent-ink: #35e074;
   --accent-soft: #123722;
   --accent-border: #1f6b3f;
 
-  /* Status. Deliberately off the green so "warning" and "good" never blur into
-     the brand colour. */
   --danger: #ff6b6b;
   --danger-soft: #3a1a1c;
   --warn: #f5c518;
@@ -48,13 +170,24 @@
   --ok: #1ed760;
   --ok-soft: #123722;
 
+  /* Translucent layers that let the wash read through them. */
+  --topbar-bg: rgb(24 15 5 / 0.28);
+  --hairline: rgb(255 255 255 / 0.07);
+  --glass: rgb(20 14 8 / 0.42);
+  --glass-border: rgb(255 255 255 / 0.1);
+  --glass-sunk: rgb(10 7 4 / 0.5);
+  --field-bg: rgb(255 255 255 / 0.07);
+  --field-border: rgb(255 255 255 / 0.09);
+  --chip-bg: rgb(255 255 255 / 0.05);
+  --chip-bg-hover: rgb(255 255 255 / 0.1);
+  --chip-border: rgb(255 255 255 / 0.1);
+  --card-bg: color-mix(in srgb, #1a1614 88%, transparent);
+  --overlay: rgb(6 4 2 / 0.66);
+  --toast-bg: #22303c;
+  --toast-text: #ffffff;
+
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.36);
   --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.5), 0 18px 48px rgb(0 0 0 / 0.6);
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-lg: 18px;
-  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -90,6 +223,7 @@ body::before {
     var(--wash-tail) 66%,
     transparent 100%
   );
+  opacity: var(--wash-opacity);
   pointer-events: none;
   z-index: 0;
 }
@@ -117,9 +251,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: rgb(24 15 5 / 0.28);
+  background: var(--topbar-bg);
   backdrop-filter: blur(20px) saturate(150%);
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  border-bottom: 1px solid var(--hairline);
 }
 
 .brandmark { display: flex; align-items: baseline; gap: 8px; font-weight: 700; letter-spacing: -0.02em; }
@@ -164,8 +298,8 @@ main { flex: 1; width: 100%; max-width: 1040px; margin: 0 auto; padding: 22px 16
 /* --- cards & primitives --------------------------------------------------- */
 
 .card {
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  border: 1px solid rgb(255 255 255 / 0.07);
+  background: var(--card-bg);
+  border: 1px solid var(--hairline);
   backdrop-filter: blur(8px);
   border-radius: var(--radius);
   padding: 16px;
@@ -220,8 +354,8 @@ button.btn.small { padding: 5px 9px; font-size: 0.82rem; }
 
 input[type='text'], input[type='search'], textarea, select {
   width: 100%;
-  background: rgb(255 255 255 / 0.07);
-  border: 1px solid rgb(255 255 255 / 0.09);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   color: var(--text);
@@ -244,8 +378,8 @@ label.field > span.label { display: block; font-weight: 600; font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  background: rgb(255 255 255 / 0.05);
+  border: 1px solid var(--chip-border);
+  background: var(--chip-bg);
   border-radius: 999px;
   padding: 6px 12px;
   cursor: pointer;
@@ -254,11 +388,11 @@ label.field > span.label { display: block; font-weight: 600; font-size: 0.85rem;
   text-align: left;
   transition: background 0.12s, border-color 0.12s;
 }
-.chip:hover { background: rgb(255 255 255 / 0.1); }
+.chip:hover { background: var(--chip-bg-hover); }
 .chip[aria-pressed='true'], .chip.on {
   background: var(--accent-soft);
   border-color: var(--accent-border);
-  color: color-mix(in oklab, var(--accent) 75%, var(--text));
+  color: var(--accent-ink);
   font-weight: 600;
 }
 .chip .sub { color: var(--text-faint); font-weight: 400; font-size: 0.85em; }
@@ -276,7 +410,7 @@ label.field > span.label { display: block; font-weight: 600; font-size: 0.85rem;
   color: var(--text-dim);
   border: 1px solid var(--border);
 }
-.tag.accent { background: var(--accent-soft); color: color-mix(in oklab, var(--accent) 80%, var(--text)); border-color: var(--accent-border); }
+.tag.accent { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent-border); }
 .tag.warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in oklab, var(--warn) 35%, var(--border)); }
 .tag.ok { background: var(--ok-soft); color: var(--ok); border-color: color-mix(in oklab, var(--ok) 35%, var(--border)); }
 .tag.danger { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in oklab, var(--danger) 35%, var(--border)); }
@@ -347,8 +481,8 @@ details.more[open] > summary::before { transform: rotate(90deg); }
   gap: 16px 18px;
   align-items: start;
   padding: 22px;
-  background: rgb(20 14 8 / 0.42);
-  border: 1px solid rgb(255 255 255 / 0.1);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   margin-bottom: 14px;
@@ -432,8 +566,8 @@ button.btn.icon {
   margin-bottom: 18px;
 }
 .metric {
-  background: rgb(20 14 8 / 0.4);
-  border: 1px solid rgb(255 255 255 / 0.08);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(8px);
   border-radius: var(--radius);
   padding: 14px 16px;
@@ -462,8 +596,8 @@ button.btn.icon {
   display: flex;
   gap: 3px;
   padding: 3px;
-  background: rgb(10 7 4 / 0.5);
-  border: 1px solid rgb(255 255 255 / 0.07);
+  background: var(--glass-sunk);
+  border: 1px solid var(--hairline);
   backdrop-filter: blur(8px);
   border-radius: var(--radius);
   margin-bottom: 6px;
@@ -496,7 +630,7 @@ button.btn.icon {
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
-.segmented button[aria-pressed='true'] .seg-count { color: var(--accent); }
+.segmented button[aria-pressed='true'] .seg-count { color: var(--accent-ink); }
 
 /* --- drink grid ------------------------------------------------------------ */
 
@@ -572,7 +706,7 @@ button.btn.icon {
 .overlay {
   position: fixed;
   inset: 0;
-  background: oklch(20% 0.02 60 / 0.5);
+  background: var(--overlay);
   backdrop-filter: blur(3px);
   z-index: 50;
   display: flex;
@@ -681,7 +815,7 @@ button.btn.icon {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ok);
+  background: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 22%, transparent);
   animation: pulse 2.4s ease-in-out infinite;
 }
@@ -740,9 +874,9 @@ button.btn.icon {
   left: 50%;
   bottom: 22px;
   transform: translateX(-50%);
-  background: #22303c;
-  color: #ffffff;
-  border: 1px solid rgb(255 255 255 / 0.1);
+  background: var(--toast-bg);
+  color: var(--toast-text);
+  border: 1px solid var(--glass-border);
   padding: 10px 18px;
   border-radius: 999px;
   box-shadow: var(--shadow-lg);

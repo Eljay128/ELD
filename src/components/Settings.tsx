@@ -1,9 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import { BRANDS } from '../catalog/index.ts';
 import type { AppState } from '../model/types.ts';
 import { exportBackup, identitySnapshot, importBackup, resetAll } from '../model/store.ts';
 import { CopyButton, Group, VerificationTag } from './ui.tsx';
 import { RelayPanel } from './RelayPanel.tsx';
+import { THEME_OPTIONS, setTheme, subscribeTheme, themeChoice } from '../model/theme.ts';
 
 export function Settings({
   state,
@@ -21,6 +22,13 @@ export function Settings({
       <div className="page-head">
         <h1>Settings &amp; data</h1>
         <p>Everything Pourfolio knows lives in this browser. Nothing is uploaded, and there is no account behind it.</p>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <h2>Appearance</h2>
+        </div>
+        <ThemePicker />
       </div>
 
       <div className="card">
@@ -265,6 +273,27 @@ function IdentityPanel({ state }: { state: AppState }) {
       <div className="row" style={{ marginTop: 12 }}>
         <CopyButton text={identity.publicKey} label="Copy public key" />
       </div>
+    </>
+  );
+}
+
+/** Light, dark, or whatever the device is doing. */
+function ThemePicker() {
+  const choice = useSyncExternalStore(subscribeTheme, themeChoice, themeChoice);
+  const active = THEME_OPTIONS.find((o) => o.id === choice);
+
+  return (
+    <>
+      <nav className="segmented" aria-label="Theme">
+        {THEME_OPTIONS.map((o) => (
+          <button key={o.id} aria-pressed={choice === o.id} onClick={() => setTheme(o.id)}>
+            {o.label}
+          </button>
+        ))}
+      </nav>
+      <p className="faint" style={{ marginTop: 8, marginBottom: 0 }}>
+        {active?.hint}
+      </p>
     </>
   );
 }

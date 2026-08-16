@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "npm run build && node scripts/smoke.mjs && node scripts/relay-test.mjs",
-    "check": "node --experimental-strip-types scripts/check-catalog.ts",
+    "check": "node --experimental-strip-types scripts/check-catalog.ts && node scripts/check-contrast.mjs",
     "single": "npm run build && node scripts/build-single-file.mjs",
     "relay": "node relay/server.mjs",
     "test:relay": "npm run build && node scripts/relay-test.mjs"

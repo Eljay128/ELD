@@ -112,19 +112,32 @@ the round still records what was actually in the cup that day.
 
 ## Look and feel
 
-One committed theme rather than a light/dark pair: a dark, warm-biased canvas with an amber
-wash bleeding down from the top — the way a music app tints its header from the artwork
-below it — and a single vivid green carrying every primary action.
+One identity in two lights. Both themes are a warm ground with an amber wash falling from
+the top and a single green carrying every action. What changes is whether that wash is
+**light emitted in a dark room** or **sunlight landing on paper**.
 
-That means the usual three-state theme handling does not apply here. There is no
-`prefers-color-scheme` block and no `data-theme` switch; every colour is stated outright on
-`:root`, and `body` paints its own ground so the page holds whatever surrounds it. A light
-version of "amber gradient over near-black" is not the same design, so the alternative was
-never worth building.
+The light theme is designed rather than inverted:
 
-Colour is spent in one place. Green is the accent and appears only on things you act on —
-primary buttons, the current tab, a marked go-to. Amber is ambience, not signal. Status
-colours sit deliberately off the green so a warning never reads as the brand.
+- Its ground is warm parchment, not white, so it shares the dark theme's warmth instead of
+  turning clinical.
+- Its wash is shorter and softer — daylight falls off faster than a glow.
+- Its green **steps down wherever green becomes ink**. The bright green survives as a fill
+  with dark text on it, exactly as on dark, but as text on parchment it fails contrast
+  outright, so chips, tags and counts use a deep forest tone instead.
+
+Colour is spent in one place. Green appears only on things you act on — primary buttons,
+the current tab, a marked go-to. Amber is ambience, not signal. Status colours sit
+deliberately off the green so a warning never reads as the brand.
+
+Three states, because the viewer has three: bare `:root` is the complete light palette, and
+the dark palette is redefined both for system-dark and for the explicit toggle, so neither
+can lose to the other. Components only ever read tokens, never a literal — every
+translucent surface is a token too, which is what makes one set of components serve both
+palettes. **Settings → Appearance** offers System / Light / Dark.
+
+`npm run check` verifies contrast by parsing the real token values out of `styles.css`, so
+the check cannot drift from the stylesheet. It caught a genuine regression on its first
+run: strengthening the dark wash had pushed white-on-amber to 4.00:1.
 
 ---
 
@@ -258,6 +271,7 @@ src/
   model/
     types.ts          Profile, Order, Peer, Round, occasions, dietary flags
     relay.ts          Optional relay client — off unless switched on
+    theme.ts          System / light / dark selection
     sealed.ts         Per-recipient envelope encryption
     avatar.ts         Crop, downscale and re-encode a photo to share-code size
     identity.ts       Keypairs, signing, verification, canonical bytes
@@ -281,6 +295,7 @@ relay/
 scripts/
   smoke.mjs           End-to-end test driving two independent browsers
   relay-test.mjs      Proves delivery to a peer whose app was closed
+  check-contrast.mjs  WCAG contrast for both palettes, read from the real CSS
   check-catalog.ts    Catches option ids that reference nothing
   build-single-file.mjs  Inlines the build into one portable HTML file
 ```
@@ -326,7 +341,7 @@ and confirming the app never silently trusts it.
 ```bash
 npm test          # 50 offline checks + 14 relay checks
 npm run test:relay  # just the always-on delivery proof
-npm run check     # catalog consistency
+npm run check     # catalog consistency + contrast in both themes
 ```
 
 `relay-test.mjs` is the one that matters for the always-on claim: it starts a real relay,
