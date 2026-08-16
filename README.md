@@ -110,6 +110,24 @@ the round still records what was actually in the cup that day.
 
 ---
 
+## Look and feel
+
+One committed theme rather than a light/dark pair: a dark, warm-biased canvas with an amber
+wash bleeding down from the top — the way a music app tints its header from the artwork
+below it — and a single vivid green carrying every primary action.
+
+That means the usual three-state theme handling does not apply here. There is no
+`prefers-color-scheme` block and no `data-theme` switch; every colour is stated outright on
+`:root`, and `body` paints its own ground so the page holds whatever surrounds it. A light
+version of "amber gradient over near-black" is not the same design, so the alternative was
+never worth building.
+
+Colour is spent in one place. Green is the accent and appears only on things you act on —
+primary buttons, the current tab, a marked go-to. Amber is ambience, not signal. Status
+colours sit deliberately off the green so a warning never reads as the brand.
+
+---
+
 ## The relay — optional, encrypted, off by default
 
 Reaching someone whose app is **closed** needs something that stays awake. That is the

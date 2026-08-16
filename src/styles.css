@@ -1,85 +1,60 @@
 /* ---------------------------------------------------------------------------
-   Tokens. Light is the base definition; dark redefines only what changes, so a
-   colour is never defined solely inside a media query.
+   Palette — one committed look, not a light/dark pair.
+
+   The page is a dark canvas with a warm amber wash bleeding down from the top,
+   the way a music app tints its header from the artwork below it. A light
+   variant of that idea does not exist, so this design deliberately ships a
+   single theme: every colour is stated outright and nothing hides behind a
+   `prefers-color-scheme` query. `body` paints its own ground, so the page holds
+   whatever the host is doing around it.
    --------------------------------------------------------------------------- */
 
 :root {
-  --bg: oklch(98.5% 0.008 80);
-  --bg-sunk: oklch(96% 0.012 80);
-  --surface: oklch(100% 0 0);
-  --surface-2: oklch(97.5% 0.008 80);
-  --border: oklch(89% 0.012 80);
-  --border-strong: oklch(80% 0.02 80);
-  --text: oklch(24% 0.02 60);
-  --text-dim: oklch(50% 0.015 60);
-  --text-faint: oklch(64% 0.012 60);
-  --accent: oklch(52% 0.13 45);
-  --accent-text: oklch(100% 0 0);
-  --accent-soft: oklch(94% 0.04 45);
-  --accent-border: oklch(78% 0.08 45);
-  --danger: oklch(52% 0.17 25);
-  --danger-soft: oklch(95% 0.04 25);
-  --warn: oklch(48% 0.11 75);
-  --warn-soft: oklch(95% 0.05 85);
-  --ok: oklch(48% 0.11 155);
-  --ok-soft: oklch(94% 0.05 155);
-  --shadow: 0 1px 2px oklch(30% 0.02 60 / 0.06), 0 4px 16px oklch(30% 0.02 60 / 0.06);
-  --shadow-lg: 0 2px 6px oklch(30% 0.02 60 / 0.1), 0 18px 48px oklch(30% 0.02 60 / 0.14);
+  color-scheme: dark;
+
+  /* Ground: warm-biased near-black, so the amber above never reads as a stain
+     sitting on neutral grey. */
+  --bg: #100d0a;
+  --bg-sunk: #0a0807;
+  --surface: #1a1614;
+  --surface-2: #241f1b;
+  --border: #2e2823;
+  --border-strong: #43392f;
+
+  /* The wash. Sampled warm ochre through to nothing, the way artwork colour
+     fades out down a page. */
+  --wash-top: #b3701b;
+  --wash-mid: #7a4a15;
+  --wash-tail: #2b1b0c;
+
+  --text: #ffffff;
+  --text-dim: #b7ada2;
+  --text-faint: #8b8177;
+
+  /* Accent: the vivid green that carries every primary action. Text on it is
+     near-black, which is the only way that green stays legible. */
+  --accent: #1ed760;
+  --accent-hover: #34e174;
+  --accent-text: #06170d;
+  --accent-soft: #123722;
+  --accent-border: #1f6b3f;
+
+  /* Status. Deliberately off the green so "warning" and "good" never blur into
+     the brand colour. */
+  --danger: #ff6b6b;
+  --danger-soft: #3a1a1c;
+  --warn: #f5c518;
+  --warn-soft: #3a2f10;
+  --ok: #1ed760;
+  --ok-soft: #123722;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.36);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.5), 0 18px 48px rgb(0 0 0 / 0.6);
   --radius: 12px;
   --radius-sm: 8px;
   --radius-lg: 18px;
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: oklch(17% 0.012 60);
-    --bg-sunk: oklch(14% 0.012 60);
-    --surface: oklch(21% 0.014 60);
-    --surface-2: oklch(25% 0.014 60);
-    --border: oklch(31% 0.014 60);
-    --border-strong: oklch(42% 0.018 60);
-    --text: oklch(94% 0.008 80);
-    --text-dim: oklch(74% 0.012 80);
-    --text-faint: oklch(58% 0.012 80);
-    --accent: oklch(74% 0.13 55);
-    --accent-text: oklch(18% 0.02 55);
-    --accent-soft: oklch(28% 0.05 45);
-    --accent-border: oklch(45% 0.08 45);
-    --danger: oklch(72% 0.15 25);
-    --danger-soft: oklch(28% 0.06 25);
-    --warn: oklch(80% 0.11 85);
-    --warn-soft: oklch(29% 0.05 85);
-    --ok: oklch(76% 0.12 155);
-    --ok-soft: oklch(26% 0.05 155);
-    --shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 4px 16px oklch(0% 0 0 / 0.3);
-    --shadow-lg: 0 2px 6px oklch(0% 0 0 / 0.4), 0 18px 48px oklch(0% 0 0 / 0.5);
-  }
-}
-
-:root[data-theme='dark'] {
-  --bg: oklch(17% 0.012 60);
-  --bg-sunk: oklch(14% 0.012 60);
-  --surface: oklch(21% 0.014 60);
-  --surface-2: oklch(25% 0.014 60);
-  --border: oklch(31% 0.014 60);
-  --border-strong: oklch(42% 0.018 60);
-  --text: oklch(94% 0.008 80);
-  --text-dim: oklch(74% 0.012 80);
-  --text-faint: oklch(58% 0.012 80);
-  --accent: oklch(74% 0.13 55);
-  --accent-text: oklch(18% 0.02 55);
-  --accent-soft: oklch(28% 0.05 45);
-  --accent-border: oklch(45% 0.08 45);
-  --danger: oklch(72% 0.15 25);
-  --danger-soft: oklch(28% 0.06 25);
-  --warn: oklch(80% 0.11 85);
-  --warn-soft: oklch(29% 0.05 85);
-  --ok: oklch(76% 0.12 155);
-  --ok-soft: oklch(26% 0.05 155);
-  --shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 4px 16px oklch(0% 0 0 / 0.3);
-  --shadow-lg: 0 2px 6px oklch(0% 0 0 / 0.4), 0 18px 48px oklch(0% 0 0 / 0.5);
 }
 
 * { box-sizing: border-box; }
@@ -90,6 +65,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
+  position: relative;
   font-family: var(--font);
   font-size: 15px;
   line-height: 1.5;
@@ -97,7 +73,30 @@ body {
   overflow-x: hidden;
 }
 
-h1, h2, h3, h4 { margin: 0; line-height: 1.2; font-weight: 650; letter-spacing: -0.015em; }
+/* The wash. Fixed rather than scrolled, so it behaves like ambient light on the
+   top of the screen instead of a banner that slides away. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 680px;
+  /* Four stops rather than two: the amber holds through the top third, then
+     falls away through a warm brown so it lands on the ground colour instead of
+     stopping abruptly against it. */
+  background: linear-gradient(
+    180deg,
+    var(--wash-top) 0%,
+    var(--wash-mid) 32%,
+    var(--wash-tail) 66%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app { position: relative; z-index: 1; }
+
+h1, h2, h3, h4 { margin: 0; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
 h1 { font-size: 1.5rem; }
 h2 { font-size: 1.2rem; }
 h3 { font-size: 1rem; }
@@ -118,9 +117,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: color-mix(in oklab, var(--bg) 88%, transparent);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+  background: rgb(24 15 5 / 0.28);
+  backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
 }
 
 .brandmark { display: flex; align-items: baseline; gap: 8px; font-weight: 700; letter-spacing: -0.02em; }
@@ -141,7 +140,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
   white-space: nowrap;
 }
 .tab:hover { background: var(--surface-2); color: var(--text); }
-.tab[aria-current='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.tab[aria-current='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
 .tab .count {
   display: inline-block;
   margin-left: 6px;
@@ -160,8 +164,9 @@ main { flex: 1; width: 100%; max-width: 1040px; margin: 0 auto; padding: 22px 16
 /* --- cards & primitives --------------------------------------------------- */
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid rgb(255 255 255 / 0.07);
+  backdrop-filter: blur(8px);
   border-radius: var(--radius);
   padding: 16px;
   box-shadow: var(--shadow);
@@ -197,8 +202,16 @@ button.btn {
 button.btn:hover { background: var(--surface-2); }
 button.btn:active { transform: translateY(1px); }
 button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-button.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-button.btn.primary:hover { background: color-mix(in oklab, var(--accent) 88%, black); }
+button.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  border-radius: 999px;
+  padding-inline: 18px;
+}
+button.btn.primary:hover { background: var(--accent-hover); transform: scale(1.03); }
+button.btn.primary:active { transform: scale(0.99); }
 button.btn.ghost { border-color: transparent; background: transparent; color: var(--text-dim); }
 button.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
 button.btn.danger { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 35%, var(--border)); }
@@ -207,11 +220,14 @@ button.btn.small { padding: 5px 9px; font-size: 0.82rem; }
 
 input[type='text'], input[type='search'], textarea, select {
   width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(255 255 255 / 0.09);
   border-radius: var(--radius-sm);
-  padding: 9px 11px;
+  padding: 10px 12px;
+  color: var(--text);
 }
+input::placeholder, textarea::placeholder { color: var(--text-faint); }
+input[type='search'] { border-radius: 999px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, .chip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -228,8 +244,8 @@ label.field > span.label { display: block; font-weight: 600; font-size: 0.85rem;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.05);
   border-radius: 999px;
   padding: 6px 12px;
   cursor: pointer;
@@ -238,7 +254,7 @@ label.field > span.label { display: block; font-weight: 600; font-size: 0.85rem;
   text-align: left;
   transition: background 0.12s, border-color 0.12s;
 }
-.chip:hover { background: var(--surface-2); }
+.chip:hover { background: rgb(255 255 255 / 0.1); }
 .chip[aria-pressed='true'], .chip.on {
   background: var(--accent-soft);
   border-color: var(--accent-border);
@@ -323,6 +339,7 @@ details.more[open] > summary::before { transform: rotate(90deg); }
 
 .identity {
   display: grid;
+  backdrop-filter: blur(10px);
   grid-template-columns: auto 1fr;
   grid-template-areas:
     'avatar text'
@@ -330,8 +347,8 @@ details.more[open] > summary::before { transform: rotate(90deg); }
   gap: 16px 18px;
   align-items: start;
   padding: 22px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgb(20 14 8 / 0.42);
+  border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   margin-bottom: 14px;
@@ -342,7 +359,7 @@ details.more[open] > summary::before { transform: rotate(90deg); }
   width: 88px;
   height: 88px;
   border-radius: 50%;
-  border: 2px solid var(--accent-border);
+  border: 2px solid var(--accent);
   background: var(--accent-soft);
   font-size: 2.6rem;
   line-height: 1;
@@ -415,8 +432,9 @@ button.btn.icon {
   margin-bottom: 18px;
 }
 .metric {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgb(20 14 8 / 0.4);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(8px);
   border-radius: var(--radius);
   padding: 14px 16px;
   min-width: 0;
@@ -444,8 +462,9 @@ button.btn.icon {
   display: flex;
   gap: 3px;
   padding: 3px;
-  background: var(--bg-sunk);
-  border: 1px solid var(--border);
+  background: rgb(10 7 4 / 0.5);
+  border: 1px solid rgb(255 255 255 / 0.07);
+  backdrop-filter: blur(8px);
   border-radius: var(--radius);
   margin-bottom: 6px;
   overflow-x: auto;
@@ -721,8 +740,9 @@ button.btn.icon {
   left: 50%;
   bottom: 22px;
   transform: translateX(-50%);
-  background: var(--text);
-  color: var(--bg);
+  background: #22303c;
+  color: #ffffff;
+  border: 1px solid rgb(255 255 255 / 0.1);
   padding: 10px 18px;
   border-radius: 999px;
   box-shadow: var(--shadow-lg);
@@ -734,7 +754,7 @@ button.btn.icon {
 }
 
 .searchbar { position: relative; }
-.searchbar input { padding-left: 34px; }
+.searchbar input { padding-left: 36px; border-radius: 999px; }
 .searchbar::before { content: '🔍'; position: absolute; left: 11px; top: 50%; transform: translateY(-50%); opacity: 0.5; font-size: 0.85rem; }
 
 table.stats { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
@@ -750,8 +770,18 @@ table.stats td:last-child { text-align: right; font-variant-numeric: tabular-num
 
 @media (max-width: 640px) {
   .topbar { flex-wrap: wrap; }
-  .tabs { margin-left: 0; width: 100%; }
-  .tab { flex: 1; justify-content: center; }
+  /* One scrolling row rather than two wrapped ones — the header should not eat
+     a third of a phone screen before any content appears. */
+  .tabs {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; }
   main { padding: 16px 12px 90px; }
 
   .identity {
