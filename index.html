@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Safe at Home South Florida</title>
+<meta name="description" content="Aging-in-place home modifications for South Florida homes: in-home safety assessments, bathroom conversions, grab bars, zero-step entries, hurricane readiness and more.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: one long scroll in calm bands; hero pairs the promise with a floor-plan "risk map" of a typical South Florida ranch home. Large type throughout for an older audience. */
+:root {
+  --bg: #f5f7f4;
+  --surface: #ffffff;
+  --band: #e6eee9;
+  --ink: #15302a;
+  --muted: #4a5f58;
+  --line: #c9d6cf;
+  --accent: #0d6b57;       /* mangrove green */
+  --accent-ink: #ffffff;
+  --sun: #d9892b;          /* used sparingly: risk markers */
+  --sun-soft: #fbeedb;
+  --plan-fill: #ffffff;
+  --plan-wet: #dcebf1;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --step--1: 0.95rem;
+  --step-0: 1.15rem;
+  --step-1: 1.4rem;
+  --step-2: 1.85rem;
+  --step-3: clamp(2.2rem, 4.5vw, 3.4rem);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1a17; --surface: #16241f; --band: #13211c; --ink: #e7efeb; --muted: #a9bcb4;
+    --line: #2b3e37; --accent: #4cc3a3; --accent-ink: #062019; --sun: #f0a649; --sun-soft: #3a2a14;
+    --plan-fill: #1b2b25; --plan-wet: #1c3340; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1a17; --surface: #16241f; --band: #13211c; --ink: #e7efeb; --muted: #a9bcb4;
+  --line: #2b3e37; --accent: #4cc3a3; --accent-ink: #062019; --sun: #f0a649; --sun-soft: #3a2a14;
+  --plan-fill: #1b2b25; --plan-wet: #1c3340; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: var(--step-0); line-height: 1.6;
+}
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h2 { font-size: var(--step-3); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: var(--step-1); font-weight: 700; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; border-radius: 4px; }
+
+.wrap { max-width: 1160px; margin-inline: auto; padding-inline: 20px; }
+.band { padding-block: clamp(56px, 8vw, 96px); }
+.band.alt { background: var(--band); }
+.eyebrow {
+  font-family: var(--font-body); font-weight: 700; font-size: var(--step--1);
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent);
+}
+.lede { font-size: var(--step-1); color: var(--muted); max-width: 62ch; }
+.section-head { display: grid; gap: 14px; margin-bottom: 40px; max-width: 760px; }
+
+/* Header */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+}
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+.top nav { display: flex; gap: 22px; flex-wrap: wrap; font-weight: 600; }
+.top nav a { color: var(--ink); text-decoration: none; }
+.top nav a:hover { color: var(--accent); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: var(--step-0);
+  padding: 14px 24px; border-radius: 999px; text-decoration: none; border: 0; cursor: pointer;
+  font-family: var(--font-body); min-height: 52px;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+@media (max-width: 760px) { .top nav { display: none; } }
+
+/* Hero */
+.hero { padding-block: clamp(40px, 6vw, 80px); }
+.hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(32px, 5vw, 64px); align-items: center; }
+.hero h1 { font-size: clamp(2.5rem, 5.6vw, 4.3rem); font-weight: 800; letter-spacing: -0.02em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero-copy { display: grid; gap: 22px; min-width: 0; }
+.hero-cta { display: flex; gap: 14px; flex-wrap: wrap; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px 28px; color: var(--muted); font-size: var(--step--1); padding-top: 6px; }
+.facts strong { color: var(--ink); }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; min-width: 0; }
+.plan-card figcaption { font-size: var(--step--1); color: var(--muted); margin-top: 10px; }
+.plan-card svg { width: 100%; height: auto; display: block; }
+.plan-card .room { fill: var(--plan-fill); stroke: var(--ink); stroke-width: 2; }
+.plan-card .wet { fill: var(--plan-wet); }
+.plan-card .pool { fill: var(--plan-wet); stroke: var(--accent); stroke-width: 2; }
+.plan-card .lbl { fill: var(--muted); font: 600 13px var(--font-body); }
+.plan-card .pin circle { fill: var(--sun); }
+.plan-card .pin text { fill: #1a1206; font: 800 13px var(--font-body); text-anchor: middle; dominant-baseline: central; }
+@media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } }
+
+/* Stats strip */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-block: 1px solid var(--line); }
+.stat { padding: 26px 20px; display: grid; gap: 6px; }
+.stat + .stat { border-left: 1px solid var(--line); }
+.stat b { font-family: var(--font-display); font-size: var(--step-2); font-weight: 800; color: var(--accent); }
+.stat span { color: var(--muted); font-size: var(--step--1); }
+@media (max-width: 760px) { .stats { grid-template-columns: 1fr; } .stat + .stat { border-left: 0; border-top: 1px solid var(--line); } }
+
+/* Risks */
+.risk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+@media (max-width: 400px) { .risk-grid { grid-template-columns: 1fr; } }
+.risk { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.risk header { display: flex; align-items: center; gap: 12px; }
+.pinmark {
+  flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--sun); color: #1a1206;
+  font-weight: 800; display: grid; place-items: center; font-size: 0.95rem;
+}
+.risk .where { font-size: var(--step--1); color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.risk p { color: var(--muted); }
+.risk ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.fl-tag { display: inline-block; background: var(--sun-soft); color: var(--ink); font-size: 0.8rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; letter-spacing: 0.04em; text-transform: uppercase; width: fit-content; }
+
+/* Peace of mind */
+.pom { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.pom-col { display: grid; gap: 18px; align-content: start; min-width: 0; padding: 32px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.pom-col h3 { font-size: var(--step-2); }
+.pom-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.pom-col li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; }
+.pom-col li svg { margin-top: 4px; }
+.pom-col li b { display: block; }
+.pom-col li span { color: var(--muted); }
+blockquote { margin: 40px 0 0; padding: 0 0 0 24px; border-left: 4px solid var(--accent); font-family: var(--font-display); font-size: var(--step-2); font-weight: 500; line-height: 1.3; max-width: 30ch; }
+@media (max-width: 860px) { .pom { grid-template-columns: 1fr; } .pom-col { padding: 24px; } }
+
+/* Solutions */
+.sol-table { display: grid; gap: 0; border-top: 2px solid var(--ink); }
+.sol-row { display: grid; grid-template-columns: 220px 1fr 1fr; gap: 24px; padding-block: 26px; border-bottom: 1px solid var(--line); }
+.sol-row h3 { font-size: var(--step-1); }
+.sol-row .col-label { display: none; }
+.sol-row ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.sol-row .risk-col { color: var(--muted); }
+.sol-head { display: grid; grid-template-columns: 220px 1fr 1fr; gap: 24px; padding-block: 12px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+@media (max-width: 860px) {
+  .sol-head { display: none; }
+  .sol-row { grid-template-columns: 1fr; gap: 12px; }
+  .sol-row .col-label { display: block; font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+}
+
+/* Process */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; list-style: none; padding: 0; margin: 0; counter-reset: step; }
+.steps li { counter-increment: step; display: grid; gap: 10px; align-content: start; padding-top: 18px; border-top: 3px solid var(--accent); }
+.steps li::before { content: "Step " counter(step); font-weight: 700; font-size: var(--step--1); color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; }
+.steps p { color: var(--muted); }
+@media (max-width: 900px) { .steps { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .steps { grid-template-columns: 1fr; } }
+
+/* Contact */
+.contact .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 5vw, 64px); align-items: start; }
+.contact-copy { display: grid; gap: 18px; min-width: 0; }
+.areas { display: flex; flex-wrap: wrap; gap: 10px; }
+.areas span { border: 1px solid var(--line); padding: 6px 14px; border-radius: 999px; font-weight: 600; background: var(--surface); }
+.phone { font-family: var(--font-display); font-size: var(--step-2); font-weight: 800; user-select: all; }
+form { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px; display: grid; gap: 16px; min-width: 0; }
+label { display: grid; gap: 6px; font-weight: 600; }
+input, select, textarea {
+  font: inherit; color: var(--ink); background: var(--bg); border: 2px solid var(--line);
+  border-radius: 8px; padding: 12px 14px; min-height: 52px; width: 100%;
+}
+textarea { min-height: 110px; resize: vertical; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: none; }
+.form-note { font-size: var(--step--1); color: var(--muted); }
+.form-done { background: var(--band); border-radius: 8px; padding: 14px; font-weight: 600; }
+@media (max-width: 860px) { .contact .wrap { grid-template-columns: 1fr; } form { padding: 20px; } }
+
+footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--muted); font-size: var(--step--1); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 32px; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Safe at Home South Florida, home">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M4 14 15 5l11 9v11H4z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M10 25v-5a5 5 0 0 1 10 0v5" fill="none" stroke="var(--accent)" stroke-width="2.5"/></svg>
+      Safe at Home <span style="color:var(--accent)">SoFlo</span>
+    </a>
+    <nav aria-label="Main">
+      <a href="#risks">Hidden risks</a>
+      <a href="#peace">Peace of mind</a>
+      <a href="#solutions">Solutions</a>
+      <a href="#process">How it works</a>
+    </nav>
+    <a class="btn" href="#contact">Free safety assessment</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-copy">
+        <span class="eyebrow">Aging-in-place renovation · Miami-Dade · Broward · Palm Beach</span>
+        <h1>Stay in the home you love, <em>safely</em>, for years to come.</h1>
+        <p class="lede">Most South Florida homes were built for a 35-year-old. We find the hidden hazards in yours and fix them with thoughtful, good-looking renovations, so you can keep living independently and your family can stop worrying.</p>
+        <div class="hero-cta">
+          <a class="btn" href="#contact">Book a free in-home assessment</a>
+          <a class="btn ghost" href="#risks">See the 12 overlooked risks</a>
+        </div>
+        <div class="facts">
+          <span><strong>Licensed &amp; insured</strong> Florida contractor</span>
+          <span><strong>CAPS-trained</strong> aging-in-place specialists</span>
+          <span><strong>Hurricane-code</strong> aware</span>
+        </div>
+      </div>
+
+      <figure class="plan-card" style="margin:0">
+        <svg viewBox="0 0 520 400" role="img" aria-labelledby="planTitle">
+          <title id="planTitle">Floor plan of a typical one-story South Florida home with twelve marked risk points</title>
+          <!-- rooms -->
+          <rect class="room" x="20" y="20" width="150" height="150"/>
+          <text class="lbl" x="34" y="44">Garage + laundry</text>
+          <rect class="room" x="170" y="20" width="160" height="110"/>
+          <text class="lbl" x="184" y="44">Kitchen</text>
+          <rect class="room" x="330" y="20" width="170" height="150"/>
+          <text class="lbl" x="344" y="44">Primary bedroom</text>
+          <rect class="room wet" x="400" y="170" width="100" height="100"/>
+          <text class="lbl" x="412" y="194">Bath</text>
+          <rect class="room" x="170" y="130" width="160" height="40"/>
+          <text class="lbl" x="184" y="155">Hallway</text>
+          <rect class="room" x="20" y="170" width="380" height="100"/>
+          <text class="lbl" x="34" y="194">Living (sunken) + dining</text>
+          <rect class="room" x="20" y="270" width="140" height="60"/>
+          <text class="lbl" x="34" y="294">Front entry</text>
+          <rect class="room" x="160" y="270" width="340" height="60" style="stroke-dasharray:6 5"/>
+          <text class="lbl" x="174" y="294">Screened lanai</text>
+          <rect class="pool" x="240" y="342" width="200" height="46" rx="10"/>
+          <text class="lbl" x="310" y="370">Pool</text>
+          <!-- pins: numbers match the risk cards -->
+          <g class="pin"><circle cx="460" cy="230" r="13"/><text x="460" y="230">1</text></g>
+          <g class="pin"><circle cx="430" cy="250" r="13"/><text x="430" y="250">2</text></g>
+          <g class="pin"><circle cx="300" cy="220" r="13"/><text x="300" y="220">3</text></g>
+          <g class="pin"><circle cx="90" cy="310" r="13"/><text x="90" y="310">4</text></g>
+          <g class="pin"><circle cx="230" cy="270" r="13"/><text x="230" y="270">5</text></g>
+          <g class="pin"><circle cx="150" cy="130" r="13"/><text x="150" y="130">6</text></g>
+          <g class="pin"><circle cx="250" cy="150" r="13"/><text x="250" y="150">7</text></g>
+          <g class="pin"><circle cx="370" cy="130" r="13"/><text x="370" y="130">8</text></g>
+          <g class="pin"><circle cx="250" cy="80" r="13"/><text x="250" y="80">9</text></g>
+          <g class="pin"><circle cx="335" cy="100" r="13"/><text x="335" y="100">10</text></g>
+          <g class="pin"><circle cx="420" cy="360" r="13"/><text x="420" y="360">11</text></g>
+          <g class="pin"><circle cx="60" cy="90" r="13"/><text x="60" y="90">12</text></g>
+        </svg>
+        <figcaption>A typical 1970s–90s South Florida ranch home. Each marker is a hazard most homeowners never notice until there's a fall.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>1 in 4</b><span>Americans 65 and older falls each year (CDC)</span></div>
+      <div class="stat"><b>#1</b><span>Falls are the leading cause of injury and injury death for adults 65+ (CDC)</span></div>
+      <div class="stat"><b>Most</b><span>older adults say they want to stay in their own home as they age (AARP)</span></div>
+    </div>
+  </div>
+
+  <!-- RISKS -->
+  <section class="band" id="risks">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">The overlooked risks</span>
+        <h2>12 hazards hiding in an ordinary home</h2>
+        <p class="lede">None of these look dangerous on a normal day. That's exactly why they're missed. Numbers match the floor plan above.</p>
+      </div>
+
+      <div class="risk-grid">
+        <article class="risk">
+          <header><span class="pinmark">1</span><div><div class="where">Bathroom</div><h3>The tub-and-shower combo</h3></div></header>
+          <p>Stepping over a 15-inch tub wall on wet, glazed tile is the single most common setup for a serious fall at home.</p>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">2</span><div><div class="where">Bathroom</div><h3>Towel bars and low toilets</h3></div></header>
+          <p>Towel bars and soap dishes get grabbed in a slip but aren't anchored to hold body weight. Standard 15-inch toilets are hard on knees and hips.</p>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">3</span><div><div class="where">Living areas</div><h3>Slick tile, terrazzo and sunken rooms</h3></div></header>
+          <p>Polished floors turn slippery with humidity or a spilled drink. Sunken living rooms add a single, easy-to-miss step.</p>
+          <span class="fl-tag">Common in South Florida</span>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">4</span><div><div class="where">Front entry</div><h3>Raised entry steps</h3></div></header>
+          <p>Homes here sit on raised slabs for flood elevation, so nearly every entrance has a step or two, often without a railing.</p>
+          <span class="fl-tag">Common in South Florida</span>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">5</span><div><div class="where">Lanai</div><h3>Sliding-door tracks and thresholds</h3></div></header>
+          <p>The raised track on a sliding glass door is a classic trip point for shuffling feet, walkers and wheelchairs alike.</p>
+          <span class="fl-tag">Common in South Florida</span>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">6</span><div><div class="where">Garage</div><h3>The step down to the garage</h3></div></header>
+          <p>Laundry often lives in the garage here, so it's a trip you make while carrying a full basket that blocks your view of the step.</p>
+          <span class="fl-tag">Common in South Florida</span>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">7</span><div><div class="where">Hallways &amp; doors</div><h3>Narrow doorways, round knobs</h3></div></header>
+          <p>Older 28–30 inch doorways won't fit a walker or wheelchair comfortably. Round knobs are hard to turn with arthritis.</p>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">8</span><div><div class="where">Bedroom to bath</div><h3>The dark path at night</h3></div></header>
+          <p>Most nighttime falls happen on the walk from bed to bathroom: groggy, in the dark, with switches on the wrong side of the room.</p>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">9</span><div><div class="where">Kitchen</div><h3>Reaching high and bending low</h3></div></header>
+          <p>Upper cabinets lead to step stools. Deep lower cabinets mean kneeling. Back-mounted stove knobs mean reaching over burners.</p>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">10</span><div><div class="where">Whole home</div><h3>Hurricane season with limited mobility</h3></div></header>
+          <p>Heavy storm panels, manual garage doors, power-dependent medical equipment and evacuation routes all get harder with age.</p>
+          <span class="fl-tag">June 1 – Nov 30</span>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">11</span><div><div class="where">Pool &amp; deck</div><h3>Wet decks and pool access</h3></div></header>
+          <p>Slick deck coatings, steep pool steps and no barrier for visiting grandkids. A pool is a joy and a real hazard at the same time.</p>
+          <span class="fl-tag">Common in South Florida</span>
+        </article>
+        <article class="risk">
+          <header><span class="pinmark">12</span><div><div class="where">Whole home</div><h3>No way to call for help</h3></div></header>
+          <p>A fall when you live alone can mean hours on the floor. In our heat, a failed AC unit that nobody notices is a health emergency too.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- PEACE OF MIND -->
+  <section class="band alt" id="peace">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Peace of mind</span>
+        <h2>Freedom for you. Relief for the people who love you.</h2>
+      </div>
+
+      <div class="pom">
+        <div class="pom-col">
+          <h3>For you</h3>
+          <ul>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Stay in your own home</b><span>Your neighbors, your church, your doctors, your routines. No forced move to assisted living.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Keep your independence</b><span>Shower, cook and get around on your own terms, without waiting on someone to help.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Move with confidence</b><span>Fear of falling makes people move less, which makes falls more likely. A safer home breaks that cycle.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Protect your savings</b><span>Modifying your home typically costs far less than a single year of assisted living or a long rehab stay after a fall.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>A home that still feels like home</b><span>Grab bars that look like designer hardware and showers you'd choose anyway. Nothing that says "hospital."</span></div></li>
+          </ul>
+        </div>
+        <div class="pom-col">
+          <h3>For your family</h3>
+          <ul>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Fewer worried phone calls</b><span>Especially for children and grandchildren who live out of state and can't drop by.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Know help is one button away</b><span>Alerts reach family if there's a fall, a door left open, or the AC fails in August.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Ready before a crisis</b><span>Planning now beats scrambling after a hospital discharge, when decisions get rushed.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Easier caregiving</b><span>Wider doors and roll-in showers make helping a loved one safer for the caregiver, too.</span></div></li>
+            <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="var(--accent)"/><path d="M6 11.5l3.2 3L16 8" stroke="var(--accent-ink)" stroke-width="2.4" fill="none"/></svg><div><b>Visits everyone enjoys</b><span>A home that works for grandparents, toddlers and everyone in between.</span></div></li>
+          </ul>
+        </div>
+      </div>
+      <blockquote>"The best time to make a home safer is before anyone needs it to be."</blockquote>
+    </div>
+  </section>
+
+  <!-- SOLUTIONS -->
+  <section class="band" id="solutions">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Our solutions</span>
+        <h2>Every risk has a fix, and most are simpler than you think</h2>
+        <p class="lede">From a one-day grab bar install to a full bathroom conversion, every project starts with your home and your needs. Nothing is one-size-fits-all.</p>
+      </div>
+
+      <div class="sol-head" aria-hidden="true"><span>Area</span><span>What we see</span><span>What we do</span></div>
+      <div class="sol-table">
+        <div class="sol-row">
+          <h3>Bathroom safety</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>High tub walls (1)</li><li>Unrated towel bars, low toilets (2)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Curbless, walk-in or roll-in showers</li><li>Tub cut-outs and walk-in tubs</li><li>Blocked and anchored grab bars, placed to fit you</li><li>Comfort-height toilets, bidet seats</li><li>Fold-down shower seats and handheld showers</li><li>Anti-scald valves, slip-resistant tile</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Floors &amp; transitions</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>Slick tile and terrazzo, sunken rooms (3)</li><li>Sliding-door tracks (5)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Slip-resistant treatments for existing tile and terrazzo</li><li>New slip-rated, low-glare flooring</li><li>Leveling sunken rooms or adding rails and contrast edging</li><li>Flush thresholds and low-profile door tracks</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Entries &amp; steps</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>Raised entry steps (4)</li><li>Garage step-down (6)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Zero-step entries and gently sloped walkways</li><li>Code-compliant ramps that blend with the house</li><li>Handrails on both sides of every step</li><li>Laundry relocation inside the home</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Doors &amp; mobility</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>Narrow doorways, round knobs (7)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Widened 36-inch doorways and pocket doors</li><li>Lever handles and easy-turn hardware</li><li>Offset hinges, keyless and remote entry</li><li>Stair lifts and home elevators for two-story homes</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Lighting</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>Dark path from bed to bath (8)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Motion-activated night path lighting</li><li>Lighted rocker switches at every doorway</li><li>Brighter, glare-free fixtures and under-cabinet lights</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Kitchen</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>High shelves, deep cabinets, back-mounted knobs (9)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Pull-down upper shelving and pull-out drawers</li><li>Varied counter heights and seated work areas</li><li>Front-control cooktops and wall ovens</li><li>Lever and touchless faucets</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Hurricane readiness</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>Heavy shutters, power outages, evacuation (10)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Impact windows and doors, so nothing to put up</li><li>Motorized or accordion shutters you can close alone</li><li>Standby generators for medical equipment and AC</li><li>Battery-backup garage door openers</li><li>A clear, step-free exit route</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Pool &amp; outdoor</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>Wet decks, steep pool steps (11)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Slip-resistant deck resurfacing</li><li>Pool handrails, wide entry steps and lifts</li><li>Self-latching pool barriers and door alarms</li><li>Well-lit, level paths around the house</li></ul></div>
+        </div>
+        <div class="sol-row">
+          <h3>Smart home &amp; alerts</h3>
+          <div class="risk-col"><span class="col-label">What we see</span><ul><li>No way to call for help (12)</li></ul></div>
+          <div><span class="col-label">What we do</span><ul><li>Fall detection and medical alert systems</li><li>Video doorbells and smart locks family can manage</li><li>Smart thermostats that alert family if the AC fails</li><li>Water-leak and stove shut-off sensors</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROCESS -->
+  <section class="band alt" id="process">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">How it works</span>
+        <h2>Simple, respectful, start to finish</h2>
+      </div>
+      <ol class="steps">
+        <li><h3>Free in-home assessment</h3><p>We walk your home room by room with you and, if you like, your family. About 60–90 minutes.</p></li>
+        <li><h3>Your written safety plan</h3><p>A prioritized list of fixes with clear pricing, from quick wins to bigger projects. No pressure.</p></li>
+        <li><h3>Clean, careful work</h3><p>Licensed crews, permits handled, dust contained. Most bathroom safety projects finish in days, not months.</p></li>
+        <li><h3>Walkthrough &amp; follow-up</h3><p>We show you how everything works and check back as your needs change.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section class="band contact" id="contact">
+    <div class="wrap">
+      <div class="contact-copy">
+        <span class="eyebrow">Get started</span>
+        <h2>Book your free home safety assessment</h2>
+        <p class="lede">Whether you're planning ahead, recovering from surgery, or helping a parent, we'll show you exactly where your home stands.</p>
+        <div>
+          <div class="form-note">Call us</div>
+          <div class="phone">(555) 555-0123</div>
+        </div>
+        <div>
+          <div class="form-note" style="margin-bottom:10px">Proudly serving</div>
+          <div class="areas"><span>Miami-Dade</span><span>Broward</span><span>Palm Beach</span><span>Martin</span><span>The Keys</span></div>
+        </div>
+      </div>
+
+      <form id="assessForm" novalidate>
+        <label for="f-name">Your name<input id="f-name" name="name" autocomplete="name" required></label>
+        <label for="f-phone">Phone<input id="f-phone" name="phone" type="tel" autocomplete="tel" required></label>
+        <label for="f-city">City or ZIP<input id="f-city" name="city" autocomplete="postal-code"></label>
+        <label for="f-who">This is for
+          <select id="f-who" name="who">
+            <option>Myself</option>
+            <option>My parent or relative</option>
+            <option>A client (I'm a care professional)</option>
+          </select>
+        </label>
+        <label for="f-msg">Anything we should know?<textarea id="f-msg" name="msg" placeholder="e.g. Mom has trouble getting in and out of the tub"></textarea></label>
+        <button class="btn" type="submit">Request my assessment</button>
+        <p class="form-note">We'll call within one business day. No obligation.</p>
+        <div class="form-done" id="formDone" hidden>Thank you. This preview form isn't connected yet, so nothing was sent.</div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Safe at Home SoFlo · Licensed &amp; insured Florida contractor · License # pending</span>
+    <span>Statistics: CDC Older Adult Falls data; AARP Home and Community Preferences survey.</span>
+  </div>
+</footer>
+
+<script>
+document.getElementById('assessForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var name = document.getElementById('f-name'), phone = document.getElementById('f-phone');
+  if (!name.value.trim()) { name.focus(); return; }
+  if (!phone.value.trim()) { phone.focus(); return; }
+  document.getElementById('formDone').hidden = false;
+});
+</script>
+</body>
+</html>
